@@ -43,8 +43,9 @@ app.post('/webhook', (req, res) => {
     fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
   }
 
-  const lastLine = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop();
-  console.log("⚠️ Last line in file:", lastLine.trim());
+  const fileContent = fs.readFileSync(filePath, 'utf8').trim();
+  const lastLine = fileContent.split('\n').pop();
+  console.log("⚠️ Last line in file:", lastLine);
   console.log("⚠️ New line from Telegram:", line.trim());
 
   if (lastLine && lastLine.trim() === line.trim()) {
