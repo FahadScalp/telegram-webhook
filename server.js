@@ -5,16 +5,20 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// دعم JSON و x-www-form-urlencoded
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// استقبال من Telegram
+// استقبال من MT4 عبر Webhook (text فقط)
 app.post('/webhook', (req, res) => {
   const msg =
-    req.body?.message?.text ||
+    req.body?.message?.text || // Telegram JSON format
     req.body?.channel_post?.text ||
     req.body?.edited_message?.text ||
-    req.body?.edited_channel_post?.text;
+    req.body?.edited_channel_post?.text ||
+    req.body?.text || // MT4 WebRequest بصيغة x-www-form-urlencoded
+    '';
 
   console.log("📥 Message Received:", msg);
 
@@ -34,8 +38,8 @@ app.post('/webhook', (req, res) => {
     console.log("❌ Invalid date format after fix:", fixedTime);
     return res.status(400).send("Invalid date format");
   }
-  const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
 
+  const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
   const line = `${timeStr},${name},'${account}',${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
 
@@ -59,6 +63,7 @@ app.post('/webhook', (req, res) => {
   res.send("OK");
 });
 
+// عرض الداشبورد
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
