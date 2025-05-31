@@ -10,9 +10,18 @@
       padding: 20px;
       background-color: #f9f9f9;
     }
+    h2 {
+      margin-bottom: 20px;
+    }
     table {
       width: 100%;
       background-color: #fff;
+    }
+    .summary {
+      margin-bottom: 20px;
+    }
+    #filterWrapper {
+      margin-bottom: 20px;
     }
     .totals-row {
       text-align: right;
@@ -29,10 +38,12 @@
 <body>
   <h2>📊 Fahad Trading Dashboard</h2>
 
-  <label for="accountFilter">🔍 اختر رقم الحساب:</label>
-  <select id="accountFilter">
-    <option value="">عرض الكل</option>
-  </select>
+  <div id="filterWrapper">
+    <label for="accountFilter">🔍 اختر رقم الحساب:</label>
+    <select id="accountFilter">
+      <option value="">عرض الكل</option>
+    </select>
+  </div>
 
   <table id="dataTable" class="display">
     <thead>
@@ -61,23 +72,33 @@
       try {
         const res = await fetch('data.csv');
         const text = await res.text();
+        const rows = text.trim().split('\n').map(row => row.split(','));
 
-        const lines = text.trim().split('\n');
-        const headers = lines[0].split(',');
-        const rows = lines.slice(1).map(line => line.split(','));
+        const headers = rows[0];
+        const data = rows.slice(1);
+
+        if (data.length === 0) return;
 
         const latestBalances = {};
         const accounts = new Set();
 
-        const tableData = rows.map(row => {
-          const account = row[2].replace(/'/g, '');
+        data.forEach(row => {
+          const account = row[2].replace(/'/g, "");
           const balance = parseFloat(row[3]);
-          const netProfit = balance - 100;
-
           latestBalances[account] = balance;
           accounts.add(account);
+        });
 
+        const tableData = data.map(row => {
+          const account = row[2].replace(/'/g, "");
+          const balance = parseFloat(row[3]);
+          const netProfit = balance - 100;
           return [...row.slice(0, 5), netProfit.toFixed(2)];
+        });
+
+        let grandTotal = 0;
+        Object.values(latestBalances).forEach(balance => {
+          grandTotal += (balance - 100);
         });
 
         const accountFilter = document.getElementById("accountFilter");
@@ -103,7 +124,6 @@
           table.column(2).search(val).draw();
         });
 
-        const grandTotal = Object.values(latestBalances).reduce((acc, bal) => acc + (bal - 100), 0);
         document.getElementById("grandTotal").textContent = `${grandTotal.toFixed(2)} $`;
 
       } catch (err) {
