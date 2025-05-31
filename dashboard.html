@@ -72,28 +72,29 @@
       try {
         const res = await fetch('data.csv');
         const text = await res.text();
-        const rows = text.trim().split('\n').map(row => row.split(','));
-
-        const headers = rows[0];
-        const data = rows.slice(1);
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',');
+        const data = lines.slice(1).map(row => row.split(','));
 
         if (data.length === 0) return;
 
+        const accountTotals = {};
         const latestBalances = {};
         const accounts = new Set();
 
         data.forEach(row => {
-          const account = row[2].replace(/'/g, "");
+          const account = row[2];
           const balance = parseFloat(row[3]);
+          if (!latestBalances[account]) latestBalances[account] = balance;
           latestBalances[account] = balance;
           accounts.add(account);
         });
 
         const tableData = data.map(row => {
-          const account = row[2].replace(/'/g, "");
+          const account = row[2];
           const balance = parseFloat(row[3]);
           const netProfit = balance - 100;
-          return [...row.slice(0, 5), netProfit.toFixed(2)];
+          return [...row, netProfit.toFixed(2)];
         });
 
         let grandTotal = 0;
@@ -114,8 +115,11 @@
           columns: [...headers, { title: "Net Profit" }],
           createdRow: function(row, data) {
             const net = parseFloat(data[5]);
-            if (net > 0) $(row).addClass('profit');
-            else if (net < 0) $(row).addClass('loss');
+            if (net > 0) {
+              $(row).addClass('profit');
+            } else if (net < 0) {
+              $(row).addClass('loss');
+            }
           }
         });
 
