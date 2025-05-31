@@ -48,35 +48,38 @@
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script>
     async function loadCSV() {
-      const res = await fetch('/data.csv');
-      const text = await res.text();
-      const rows = text.trim().split('\\n').slice(1);
-      const data = rows.map(line => line.split(','));
+      try {
+        const res = await fetch('data.csv');
+        const text = await res.text();
+        const rows = text.trim().split('\n');
+        const headers = rows[0].split(',');
+        const data = rows.slice(1).map(line => line.split(','));
 
-      const table = $('#dataTable').DataTable({
-        data: data,
-        columns: [
-          { title: \"Time\" },
-          { title: \"Name\" },
-          { title: \"Account\" },
-          { title: \"Balance\" },
-          { title: \"Profit\" }
-        ]
-      });
+        if (data.length === 0) return;
 
-      const accountTotals = {};
-      data.forEach(row => {
-        const account = row[2];
-        const profit = parseFloat(row[4]);
-        if (!accountTotals[account]) accountTotals[account] = 0;
-        accountTotals[account] += profit;
-      });
+        // عرض الجدول
+        const table = $('#dataTable').DataTable({
+          data: data,
+          columns: headers.map(h => ({ title: h }))
+        });
 
-      const totalsDiv = document.getElementById(\"totals\");
-      for (const [acc, total] of Object.entries(accountTotals)) {
-        const el = document.createElement(\"div\");
-        el.textContent = `• الحساب ${acc}: ${total.toFixed(2)} $`;
-        totalsDiv.appendChild(el);
+        // حساب إجمالي الربح لكل حساب
+        const accountTotals = {};
+        data.forEach(row => {
+          const account = row[2];
+          const profit = parseFloat(row[4]);
+          if (!accountTotals[account]) accountTotals[account] = 0;
+          accountTotals[account] += profit;
+        });
+
+        const totalsDiv = document.getElementById("totals");
+        for (const [acc, total] of Object.entries(accountTotals)) {
+          const el = document.createElement("div");
+          el.textContent = `• الحساب ${acc}: ${total.toFixed(2)} $`;
+          totalsDiv.appendChild(el);
+        }
+      } catch (err) {
+        console.error("⚠️ Failed to load CSV:", err);
       }
     }
 
