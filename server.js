@@ -1,25 +1,45 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const bodyParser = require('body-parser');
 const app = express();
-const port = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 app.use(bodyParser.json());
+app.use(express.static(__dirname)); // ✅ يخدم الملفات: dashboard.html و data.csv
 
+// استقبال من Telegram
 app.post('/webhook', (req, res) => {
-  const msg = req.body?.message || req.body?.channel_post;
+  const msg = req.body.channel_post?.text;
+  if (!msg) return res.sendStatus(400);
 
-  if (!msg || !msg.text) return res.send('No message');
+  const match = msg.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d\.\-]+) \$\nProfit:\s*([\d\.\-]+) \$\nTime:\s*(.+)/);
+  if (!match) return res.sendStatus(400);
 
-  console.log("📥 Message Received:", msg.text);
+  const [, name, account, balance, profit, time] = match;
+  const line = `${time},${name},${account},${balance},${profit}\n`;
+  const filePath = path.join(__dirname, 'data.csv');
 
-  // لاحقًا: تخزين الرسالة أو إرسالها لمكان آخر
-  res.send('OK');
+  // إنشاء ملف وترويسة لو أول مرة
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
+  }
+
+  // منع التكرار البسيط
+  const last = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop();
+  if (last && last.trim() === line.trim()) return res.send("Duplicate");
+
+  fs.appendFileSync(filePath, line);
+  console.log("📥 Message Saved:", line.trim());
+
+  res.send("OK");
 });
 
+// ✅ عرض الصفحة
 app.get('/', (req, res) => {
-  res.send('✅ Webhook is ready');
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

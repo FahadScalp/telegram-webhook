@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fahad - Trading Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      background-color: #fff;
+    }
+    .summary {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h2>📊 Fahad Trading Dashboard</h2>
+
+  <div class="summary">
+    <strong>📌 إجمالي الأرباح لكل حساب:</strong>
+    <div id="totals"></div>
+  </div>
+
+  <table id="dataTable" class="display">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Name</th>
+        <th>Account</th>
+        <th>Balance</th>
+        <th>Profit</th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script>
+    async function loadCSV() {
+      const res = await fetch('/data.csv');
+      const text = await res.text();
+      const rows = text.trim().split('\\n').slice(1);
+      const data = rows.map(line => line.split(','));
+
+      const table = $('#dataTable').DataTable({
+        data: data,
+        columns: [
+          { title: \"Time\" },
+          { title: \"Name\" },
+          { title: \"Account\" },
+          { title: \"Balance\" },
+          { title: \"Profit\" }
+        ]
+      });
+
+      const accountTotals = {};
+      data.forEach(row => {
+        const account = row[2];
+        const profit = parseFloat(row[4]);
+        if (!accountTotals[account]) accountTotals[account] = 0;
+        accountTotals[account] += profit;
+      });
+
+      const totalsDiv = document.getElementById(\"totals\");
+      for (const [acc, total] of Object.entries(accountTotals)) {
+        const el = document.createElement(\"div\");
+        el.textContent = `• الحساب ${acc}: ${total.toFixed(2)} $`;
+        totalsDiv.appendChild(el);
+      }
+    }
+
+    loadCSV();
+  </script>
+</body>
+</html>
