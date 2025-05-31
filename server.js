@@ -15,7 +15,7 @@ app.post('/webhook', (req, res) => {
 
   if (!msg) return res.sendStatus(400);
 
-  const match = msg.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d\.\-]+) \$\nProfit:\s*([\d\.\-]+) \$\nTime:\s*(.+)/);
+  const match = msg.match(/Name:\s*(.+)\n\s*Account:\s*(\d+)\n\s*Balance:\s*([\d\.\-]+) \$\n\s*Profit:\s*([\d\.\-]+) \$\n\s*Time:\s*(.+)/);
   if (!match) {
     console.log("❌ Message format invalid");
     return res.sendStatus(400);
