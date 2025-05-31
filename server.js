@@ -6,51 +6,55 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.use(bodyParser.json());
-app.use(express.static(__dirname)); // ✅ يخدم dashboard.html و data.csv
+app.use(express.static(__dirname));
 
 // استقبال من Telegram
 app.post('/webhook', (req, res) => {
   const msg = req.body?.message?.text || req.body?.channel_post?.text;
   console.log("📥 Message Received:", msg);
 
-  if (!msg) return res.sendStatus(400);
+  if (!msg) return res.status(400).send("No message text found");
 
-  const match = msg.match(/Name:\s*(.+)\n\s*Account:\s*(\d+)\n\s*Balance:\s*([\d\.\-]+) \$\n\s*Profit:\s*([\d\.\-]+) \$\n\s*Time:\s*(.+)/);
+  const match = msg.match(/Name:\s*(.+)\n\s*Account:\s*(\d+)\n\s*Balance:\s*([\d.\-]+) \$\n\s*Profit:\s*([\d.\-]+) \$\n\s*Time:\s*(.+)/);
+
   if (!match) {
     console.log("❌ Message format invalid");
-    return res.sendStatus(400);
+    return res.status(400).send("Invalid format");
   }
 
-  const [, name, account, balance, profit, time] = match;
-  const line = `${time},${name},${account},${balance},${profit}\n`;
+  const [, name, account, balance, profit, timeRaw] = match;
+  const time = new Date(timeRaw);
+  const timeStr = time.toISOString().slice(0, 16).replace("T", " "); // YYYY-MM-DD HH:mm
+
+  const line = `${timeStr},${name},${account},${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
 
-  // إنشاء الملف مع الترويسة إذا لم يكن موجودًا
+  // إنشاء الملف مع ترويسة إذا لم يكن موجودًا
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
   }
 
-  // مقارنة مع آخر سطر لمنع التكرار
-  const last = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop();
-  console.log("⚠️ Last line in file:", last.trim());
+  // منع التكرار عبر مقارنة السطر الأخير
+  const lastLine = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop();
+  console.log("⚠️ Last line in file:", lastLine.trim());
   console.log("⚠️ New line from Telegram:", line.trim());
 
-  if (last && last.trim() === line.trim()) {
-    console.log("⚠️ Duplicate message skipped");
+  if (lastLine && lastLine.trim() === line.trim()) {
+    console.log("⚠️ Duplicate skipped");
     return res.send("Duplicate");
   }
 
   fs.appendFileSync(filePath, line);
-  console.log("📥 Message Saved:", line.trim());
+  console.log("✅ Message Saved:", line.trim());
 
   res.send("OK");
 });
 
-// عرض الصفحة الرئيسية
+// صفحة لوحة البيانات
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
