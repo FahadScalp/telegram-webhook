@@ -23,8 +23,13 @@ app.post('/webhook', (req, res) => {
   }
 
   const [, name, account, balance, profit, timeRaw] = match;
-  const time = new Date(timeRaw);
-  const timeStr = time.toISOString().slice(0, 16).replace("T", " "); // YYYY-MM-DD HH:mm
+  const fixedTime = timeRaw.replace(/\./g, '-'); // إصلاح صيغة التاريخ
+  const time = new Date(fixedTime);
+  if (isNaN(time.getTime())) {
+    console.log("❌ Invalid date format after fix:", fixedTime);
+    return res.status(400).send("Invalid date format");
+  }
+  const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
 
   const line = `${timeStr},${name},${account},${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
