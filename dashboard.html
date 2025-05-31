@@ -112,7 +112,7 @@
 
         const table = $('#dataTable').DataTable({
           data: tableData,
-          columns: [...headers, { title: "Net Profit" }],
+          columns: [...headers.map(h => ({ title: h })), { title: "Net Profit" }],
           createdRow: function(row, data) {
             const net = parseFloat(data[5]);
             if (net > 0) {
