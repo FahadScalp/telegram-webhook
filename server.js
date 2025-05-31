@@ -6,31 +6,39 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 app.use(bodyParser.json());
-app.use(express.static(__dirname)); // ✅ يخدم الملفات: dashboard.html و data.csv
+app.use(express.static(__dirname)); // ✅ يخدم dashboard.html و data.csv
 
 // استقبال من Telegram
 app.post('/webhook', (req, res) => {
   const msg = req.body?.message?.text || req.body?.channel_post?.text;
-  console.log("📥 Message Received:", msg); // ✅ هذا السطر يطبع الرسالة في logs
+  console.log("📥 Message Received:", msg);
 
   if (!msg) return res.sendStatus(400);
 
-
   const match = msg.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d\.\-]+) \$\nProfit:\s*([\d\.\-]+) \$\nTime:\s*(.+)/);
-  if (!match) return res.sendStatus(400);
+  if (!match) {
+    console.log("❌ Message format invalid");
+    return res.sendStatus(400);
+  }
 
   const [, name, account, balance, profit, time] = match;
   const line = `${time},${name},${account},${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
 
-  // إنشاء ملف وترويسة لو أول مرة
+  // إنشاء الملف مع الترويسة إذا لم يكن موجودًا
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
   }
 
-  // منع التكرار البسيط
+  // مقارنة مع آخر سطر لمنع التكرار
   const last = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop();
-  if (last && last.trim() === line.trim()) return res.send("Duplicate");
+  console.log("⚠️ Last line in file:", last.trim());
+  console.log("⚠️ New line from Telegram:", line.trim());
+
+  if (last && last.trim() === line.trim()) {
+    console.log("⚠️ Duplicate message skipped");
+    return res.send("Duplicate");
+  }
 
   fs.appendFileSync(filePath, line);
   console.log("📥 Message Saved:", line.trim());
@@ -38,7 +46,7 @@ app.post('/webhook', (req, res) => {
   res.send("OK");
 });
 
-// ✅ عرض الصفحة
+// عرض الصفحة الرئيسية
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
