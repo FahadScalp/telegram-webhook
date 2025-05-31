@@ -85,13 +85,11 @@
         data.forEach(row => {
           const account = row[2];
           const balance = parseFloat(row[3]);
-          if (!latestBalances[account]) latestBalances[account] = balance;
           latestBalances[account] = balance;
           accounts.add(account);
         });
 
         const tableData = data.map(row => {
-          const account = row[2];
           const balance = parseFloat(row[3]);
           const netProfit = balance - 100;
           return [...row, netProfit.toFixed(2)];
