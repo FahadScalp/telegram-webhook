@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>Fahad - Trading Dashboard</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -24,6 +23,16 @@
     #filterWrapper {
       margin-bottom: 20px;
     }
+    .totals-row {
+      text-align: right;
+      font-weight: bold;
+    }
+    .loss {
+      background-color: #ffe5e5 !important;
+    }
+    .profit {
+      background-color: #e5ffe5 !important;
+    }
   </style>
 </head>
 <body>
@@ -36,13 +45,6 @@
     </select>
   </div>
 
-  <div class="summary">
-    <strong>📌 إجمالي الأرباح لكل حساب:</strong>
-    <div id="totals"></div>
-  </div>
-
-  <canvas id="profitChart" height="100"></canvas>
-
   <table id="dataTable" class="display">
     <thead>
       <tr>
@@ -51,10 +53,16 @@
         <th>Account</th>
         <th>Balance</th>
         <th>Profit</th>
+        <th>Net Profit</th>
       </tr>
     </thead>
-    <tbody>
-    </tbody>
+    <tbody></tbody>
+    <tfoot>
+      <tr class="totals-row">
+        <td colspan="5">📌 إجمالي الأرباح:</td>
+        <td id="grandTotal"></td>
+      </tr>
+    </tfoot>
   </table>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -70,26 +78,30 @@
 
         if (data.length === 0) return;
 
-        // إجمالي الأرباح
         const accountTotals = {};
+        const latestBalances = {};
         const accounts = new Set();
+
         data.forEach(row => {
           const account = row[2];
-          const profit = parseFloat(row[4]);
-          if (!accountTotals[account]) accountTotals[account] = 0;
-          accountTotals[account] += profit;
+          const balance = parseFloat(row[3]);
+          if (!latestBalances[account]) latestBalances[account] = balance;
+          latestBalances[account] = balance;
           accounts.add(account);
         });
 
-        const totalsDiv = document.getElementById("totals");
-        totalsDiv.innerHTML = '';
-        for (const [acc, total] of Object.entries(accountTotals)) {
-          const el = document.createElement("div");
-          el.textContent = `• الحساب ${acc}: ${total.toFixed(2)} $`;
-          totalsDiv.appendChild(el);
-        }
+        const tableData = data.map(row => {
+          const account = row[2];
+          const balance = parseFloat(row[3]);
+          const netProfit = balance - 100;
+          return [...row, netProfit.toFixed(2)];
+        });
 
-        // تعبئة الفلتر
+        let grandTotal = 0;
+        Object.values(latestBalances).forEach(balance => {
+          grandTotal += (balance - 100);
+        });
+
         const accountFilter = document.getElementById("accountFilter");
         accounts.forEach(acc => {
           const option = document.createElement("option");
@@ -99,37 +111,25 @@
         });
 
         const table = $('#dataTable').DataTable({
-          data: data,
-          columns: headers.map(h => ({ title: h }))
+          data: tableData,
+          columns: [...headers, { title: "Net Profit" }],
+          createdRow: function(row, data) {
+            const net = parseFloat(data[5]);
+            if (net > 0) {
+              $(row).addClass('profit');
+            } else if (net < 0) {
+              $(row).addClass('loss');
+            }
+          }
         });
 
-        // فلترة حسب الحساب
         accountFilter.addEventListener("change", () => {
           const val = accountFilter.value;
           table.column(2).search(val).draw();
         });
 
-        // رسم بياني
-        const ctx = document.getElementById('profitChart').getContext('2d');
-        const chart = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: Object.keys(accountTotals),
-            datasets: [{
-              label: 'إجمالي الأرباح ($)',
-              data: Object.values(accountTotals),
-              backgroundColor: 'rgba(75, 192, 192, 0.5)',
-              borderColor: 'rgba(75, 192, 192, 1)',
-              borderWidth: 1
-            }]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: { beginAtZero: true }
-            }
-          }
-        });
+        document.getElementById("grandTotal").textContent = `${grandTotal.toFixed(2)} $`;
+
       } catch (err) {
         console.error("⚠️ Failed to load CSV:", err);
       }
