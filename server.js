@@ -46,7 +46,7 @@ app.post('/webhook', (req, res) => {
   }
   const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
 
-  const line = `${timeStr},${name},'${account}',${balance},${profit}\n`;
+  const line = `${timeStr},${name},${account},${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
 
   if (!fs.existsSync(filePath)) {
