@@ -38,12 +38,16 @@ app.post('/webhook', (req, res) => {
   }
 
   const [, name, account, balance, profit, timeRaw] = match;
-  const cleanedTime = timeRaw.trim().replace(/\./g, '-').replace(/\s+/g, ' ');
-  const time = new Date(cleanedTime);
+
+  // تحويل التاريخ من "2025.05.31 13:43" إلى "2025-05-31 13:43"
+  const fixedTime = timeRaw.trim().replace(/^(\d{4})\.(\d{2})\.(\d{2})/, '$1-$2-$3');
+
+  const time = new Date(fixedTime);
   if (isNaN(time.getTime())) {
-    console.log("❌ Invalid date format after fix:", cleanedTime);
+    console.log("❌ Invalid date format after fix:", fixedTime);
     return res.status(400).send("Invalid date format");
   }
+
   const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
   console.log("🕒 Parsed Time:", timeStr);
 
