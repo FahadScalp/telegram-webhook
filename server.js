@@ -10,7 +10,12 @@ app.use(express.static(__dirname));
 
 // استقبال من Telegram
 app.post('/webhook', (req, res) => {
-  const msg = req.body?.message?.text || req.body?.channel_post?.text;
+  const msg =
+    req.body?.message?.text ||
+    req.body?.channel_post?.text ||
+    req.body?.edited_message?.text ||
+    req.body?.edited_channel_post?.text;
+
   console.log("📥 Message Received:", msg);
 
   if (!msg) return res.status(400).send("No message text found");

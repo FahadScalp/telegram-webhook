@@ -5,23 +5,55 @@
   <title>Fahad - Trading Dashboard</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
   <style>
-    body { font-family: Arial; background: #f9f9f9; padding: 20px; }
-    table { width: 100%; background: white; }
-    .totals-row { font-weight: bold; text-align: right; }
-    .loss { background-color: #ffe5e5 !important; }
-    .profit { background-color: #e5ffe5 !important; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      background-color: #fff;
+    }
+    .summary {
+      margin-bottom: 20px;
+    }
+    #filterWrapper {
+      margin-bottom: 20px;
+    }
+    .totals-row {
+      text-align: right;
+      font-weight: bold;
+    }
+    .loss {
+      background-color: #ffe5e5 !important;
+    }
+    .profit {
+      background-color: #e5ffe5 !important;
+    }
   </style>
 </head>
 <body>
   <h2>📊 Fahad Trading Dashboard</h2>
+
   <div id="filterWrapper">
     <label for="accountFilter">🔍 اختر رقم الحساب:</label>
-    <select id="accountFilter"><option value="">عرض الكل</option></select>
+    <select id="accountFilter">
+      <option value="">عرض الكل</option>
+    </select>
   </div>
+
   <table id="dataTable" class="display">
     <thead>
       <tr>
-        <th>Time</th><th>Name</th><th>Account</th><th>Balance</th><th>Profit</th><th>Net Profit</th>
+        <th>Time</th>
+        <th>Name</th>
+        <th>Account</th>
+        <th>Balance</th>
+        <th>Profit</th>
+        <th>Net Profit</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -42,50 +74,61 @@
         const text = await res.text();
         const rows = text.trim().split('\n');
         const headers = rows[0].split(',');
-        const data = rows.slice(1).map(r => r.split(','));
+        const data = rows.slice(1).map(line => line.split(','));
 
-        const accounts = new Set();
+        if (data.length === 0) return;
+
+        const accountTotals = {};
         const latestBalances = {};
+        const accounts = new Set();
 
         data.forEach(row => {
-          const acc = row[2].replace(/'/g, '');
-          const bal = parseFloat(row[3]);
-          latestBalances[acc] = bal;
-          accounts.add(acc);
+          const account = row[2].replace(/'/g, '');  // إزالة ' من رقم الحساب
+          const balance = parseFloat(row[3]);
+          if (!latestBalances[account]) latestBalances[account] = balance;
+          latestBalances[account] = balance;
+          accounts.add(account);
         });
 
         const tableData = data.map(row => {
-          const acc = row[2].replace(/'/g, '');
-          const bal = parseFloat(row[3]);
-          const net = bal - 100;
-          return [row[0], row[1], acc, row[3], row[4], net.toFixed(2)];
+          const account = row[2].replace(/'/g, '');
+          const balance = parseFloat(row[3]);
+          const netProfit = balance - 100;
+          return [...row.slice(0, 2), account, balance.toFixed(2), row[4], netProfit.toFixed(2)];
         });
 
-        let total = 0;
-        for (let acc in latestBalances)
-          total += latestBalances[acc] - 100;
+        let grandTotal = 0;
+        Object.values(latestBalances).forEach(balance => {
+          grandTotal += (balance - 100);
+        });
 
+        const accountFilter = document.getElementById("accountFilter");
         accounts.forEach(acc => {
-          const opt = document.createElement("option");
-          opt.value = acc; opt.textContent = acc;
-          accountFilter.appendChild(opt);
+          const option = document.createElement("option");
+          option.value = acc;
+          option.textContent = acc;
+          accountFilter.appendChild(option);
         });
 
         const table = $('#dataTable').DataTable({
           data: tableData,
           columns: [...headers, { title: "Net Profit" }],
-          createdRow: (row, data) => {
+          createdRow: function(row, data) {
             const net = parseFloat(data[5]);
-            if (net > 0) $(row).addClass("profit");
-            else if (net < 0) $(row).addClass("loss");
+            if (net > 0) {
+              $(row).addClass('profit');
+            } else if (net < 0) {
+              $(row).addClass('loss');
+            }
           }
         });
 
         accountFilter.addEventListener("change", () => {
-          table.column(2).search(accountFilter.value).draw();
+          const val = accountFilter.value;
+          table.column(2).search(val).draw();
         });
 
-        document.getElementById("grandTotal").textContent = total.toFixed(2) + " $";
+        document.getElementById("grandTotal").textContent = `${grandTotal.toFixed(2)} $`;
 
       } catch (err) {
         console.error("⚠️ Failed to load CSV:", err);
