@@ -10,7 +10,7 @@ app.use(express.static(__dirname)); // ✅ يخدم الملفات: dashboard.ht
 
 // استقبال من Telegram
 app.post('/webhook', (req, res) => {
-  const msg = req.body.channel_post?.text;
+  const msg = req.body?.message?.text || req.body?.channel_post?.text;
   if (!msg) return res.sendStatus(400);
 
   const match = msg.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d\.\-]+) \$\nProfit:\s*([\d\.\-]+) \$\nTime:\s*(.+)/);
