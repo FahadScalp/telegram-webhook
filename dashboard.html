@@ -76,7 +76,6 @@
         const headers = lines[0].split(',');
         const rawData = lines.slice(1).map(row => row.split(','));
 
-        // 🧠 نأخذ آخر سطر فقط لكل حساب
         const latestByAccount = {};
         rawData.forEach(row => {
           const account = row[2];
@@ -84,7 +83,6 @@
         });
 
         const data = Object.values(latestByAccount);
-
         const accountTotals = {};
         const accounts = new Set();
 

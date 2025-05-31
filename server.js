@@ -13,7 +13,9 @@ app.post('/webhook', (req, res) => {
   let msg = "";
 
   if (typeof req.body === "string") {
-    msg = req.body.startsWith("text=") ? decodeURIComponent(req.body.slice(5).replace(/\+/g, " ")) : req.body;
+    msg = req.body.startsWith("text=")
+      ? decodeURIComponent(req.body.slice(5).replace(/\+/g, " "))
+      : req.body;
   } else {
     msg =
       req.body?.message?.text ||
@@ -39,35 +41,25 @@ app.post('/webhook', (req, res) => {
     console.log("❌ Invalid date format after fix:", cleanedTime);
     return res.status(400).send("Invalid date format");
   }
+
   const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
   const newLine = `${timeStr},${name},${account},${balance},${profit}`;
 
   const filePath = path.join(__dirname, 'data.csv');
   let lines = [];
 
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
-  } else {
+  if (fs.existsSync(filePath)) {
     lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
+  } else {
+    fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
   }
 
   const header = lines[0];
-  const dataLines = lines.slice(1);
+  lines = lines.filter(line => !line.includes(`,${account},`));
+  lines.push(newLine);
 
-  // ابحث عن الحساب وعدّل السطر إن وُجد، وإلا أضف سطرًا جديدًا
-  let updated = false;
-  const updatedLines = dataLines.map(line => {
-    if (line.split(',')[2] === account) {
-      updated = true;
-      return newLine;
-    }
-    return line;
-  });
-
-  if (!updated) updatedLines.push(newLine);
-
-  fs.writeFileSync(filePath, [header, ...updatedLines].join('\n'));
-  console.log("✅ Data updated/saved:", newLine);
+  fs.writeFileSync(filePath, lines.join('\n') + '\n');
+  console.log("✅ Message Saved:", newLine);
   res.send("OK");
 });
 
