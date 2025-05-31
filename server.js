@@ -23,23 +23,21 @@ app.post('/webhook', (req, res) => {
   }
 
   const [, name, account, balance, profit, timeRaw] = match;
-  const fixedTime = timeRaw.replace(/\./g, '-').replace(/ /g, 'T');
+  const fixedTime = timeRaw.replace(/\./g, '-');
   const time = new Date(fixedTime);
   if (isNaN(time.getTime())) {
     console.log("❌ Invalid date format after fix:", fixedTime);
     return res.status(400).send("Invalid date format");
   }
-  const timeStr = timeRaw; // استخدم الوقت كما هو من الرسالة
+  const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
 
-  const line = `${timeStr},${name},"${account}",${balance},${profit}\n`;
+  const line = `${timeStr},${name},'${account}',${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
 
-  // إنشاء الملف مع ترويسة إذا لم يكن موجودًا
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
   }
 
-  // منع التكرار عبر مقارنة السطر الأخير
   const lastLine = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop();
   console.log("⚠️ Last line in file:", lastLine.trim());
   console.log("⚠️ New line from Telegram:", line.trim());
@@ -55,7 +53,6 @@ app.post('/webhook', (req, res) => {
   res.send("OK");
 });
 
-// صفحة لوحة البيانات
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
