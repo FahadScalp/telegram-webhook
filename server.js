@@ -31,7 +31,7 @@ app.post('/webhook', (req, res) => {
   }
   const timeStr = timeRaw; // استخدم الوقت كما هو من الرسالة
 
-  const line = `${timeStr},${name},${account},${balance},${profit}\n`;
+  const line = `${timeStr},${name},"${account}",${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
 
   // إنشاء الملف مع ترويسة إذا لم يكن موجودًا
