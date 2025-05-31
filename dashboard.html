@@ -74,31 +74,31 @@
         const text = await res.text();
         const lines = text.trim().split('\n');
         const headers = lines[0].split(',');
-        const data = lines.slice(1).map(row => row.split(','));
+        const rawData = lines.slice(1).map(row => row.split(','));
 
-        if (data.length === 0) return;
-
-        const accountTotals = {};
-        const latestBalances = {};
-        const accounts = new Set();
-
-        data.forEach(row => {
+        // 🧠 نأخذ آخر سطر فقط لكل حساب
+        const latestByAccount = {};
+        rawData.forEach(row => {
           const account = row[2];
-          const balance = parseFloat(row[3]);
-          latestBalances[account] = balance;
-          accounts.add(account);
+          latestByAccount[account] = row;
         });
 
+        const data = Object.values(latestByAccount);
+
+        const accountTotals = {};
+        const accounts = new Set();
+
         const tableData = data.map(row => {
+          const account = row[2];
           const balance = parseFloat(row[3]);
           const netProfit = balance - 100;
+          accounts.add(account);
+          accountTotals[account] = netProfit;
           return [...row, netProfit.toFixed(2)];
         });
 
         let grandTotal = 0;
-        Object.values(latestBalances).forEach(balance => {
-          grandTotal += (balance - 100);
-        });
+        Object.values(accountTotals).forEach(p => grandTotal += p);
 
         const accountFilter = document.getElementById("accountFilter");
         accounts.forEach(acc => {

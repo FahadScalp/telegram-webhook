@@ -9,15 +9,12 @@ app.use(bodyParser.json());
 app.use(bodyParser.text({ type: 'application/x-www-form-urlencoded' }));
 app.use(express.static(__dirname));
 
-// استقبال من Telegram أو MT4
 app.post('/webhook', (req, res) => {
   let msg = "";
 
   if (typeof req.body === "string") {
-    // إذا كانت الرسالة بصيغة x-www-form-urlencoded
     msg = req.body.startsWith("text=") ? decodeURIComponent(req.body.slice(5).replace(/\+/g, " ")) : req.body;
   } else {
-    // إذا كانت الرسالة من Telegram بصيغة JSON
     msg =
       req.body?.message?.text ||
       req.body?.channel_post?.text ||
@@ -27,50 +24,50 @@ app.post('/webhook', (req, res) => {
   }
 
   console.log("📥 Message Received:", msg);
-
   if (!msg) return res.status(400).send("No message text found");
 
   const match = msg.match(/Name:\s*(.+)\n\s*Account:\s*(\d+)\n\s*Balance:\s*([\d.\-]+) \$\n\s*Profit:\s*([\d.\-]+) \$\n\s*Time:\s*(.+)/);
-
   if (!match) {
     console.log("❌ Message format invalid");
     return res.status(400).send("Invalid format");
   }
 
   const [, name, account, balance, profit, timeRaw] = match;
-
-  // تحويل التاريخ من "2025.05.31 13:43" إلى "2025-05-31 13:43"
-  const fixedTime = timeRaw.trim().replace(/^(\d{4})\.(\d{2})\.(\d{2})/, '$1-$2-$3');
-
-  const time = new Date(fixedTime);
+  const cleanedTime = timeRaw.trim().replace(/\./g, '-').replace(/\s+/g, ' ');
+  const time = new Date(cleanedTime);
   if (isNaN(time.getTime())) {
-    console.log("❌ Invalid date format after fix:", fixedTime);
+    console.log("❌ Invalid date format after fix:", cleanedTime);
     return res.status(400).send("Invalid date format");
   }
-
   const timeStr = time.toISOString().slice(0, 16).replace("T", " ");
-  console.log("🕒 Parsed Time:", timeStr);
+  const newLine = `${timeStr},${name},${account},${balance},${profit}`;
 
-  const line = `${timeStr},${name},${account},${balance},${profit}\n`;
   const filePath = path.join(__dirname, 'data.csv');
+  let lines = [];
 
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
+  } else {
+    lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
   }
 
-  const fileContent = fs.readFileSync(filePath, 'utf8').trim();
-  const lastLine = fileContent.split('\n').pop();
-  console.log("⚠️ Last line in file:", lastLine);
-  console.log("⚠️ New line from Telegram:", line.trim());
+  const header = lines[0];
+  const dataLines = lines.slice(1);
 
-  if (lastLine && lastLine.trim() === line.trim()) {
-    console.log("⚠️ Duplicate skipped");
-    return res.send("Duplicate");
-  }
+  // ابحث عن الحساب وعدّل السطر إن وُجد، وإلا أضف سطرًا جديدًا
+  let updated = false;
+  const updatedLines = dataLines.map(line => {
+    if (line.split(',')[2] === account) {
+      updated = true;
+      return newLine;
+    }
+    return line;
+  });
 
-  fs.appendFileSync(filePath, line);
-  console.log("✅ Message Saved:", line.trim());
+  if (!updated) updatedLines.push(newLine);
 
+  fs.writeFileSync(filePath, [header, ...updatedLines].join('\n'));
+  console.log("✅ Data updated/saved:", newLine);
   res.send("OK");
 });
 
