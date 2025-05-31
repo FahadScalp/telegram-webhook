@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Fahad - Trading Dashboard</title>
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -20,15 +21,27 @@
     .summary {
       margin-bottom: 20px;
     }
+    #filterWrapper {
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
   <h2>📊 Fahad Trading Dashboard</h2>
 
+  <div id="filterWrapper">
+    <label for="accountFilter">🔍 اختر رقم الحساب:</label>
+    <select id="accountFilter">
+      <option value="">عرض الكل</option>
+    </select>
+  </div>
+
   <div class="summary">
     <strong>📌 إجمالي الأرباح لكل حساب:</strong>
     <div id="totals"></div>
   </div>
+
+  <canvas id="profitChart" height="100"></canvas>
 
   <table id="dataTable" class="display">
     <thead>
@@ -57,27 +70,66 @@
 
         if (data.length === 0) return;
 
-        // عرض الجدول
-        const table = $('#dataTable').DataTable({
-          data: data,
-          columns: headers.map(h => ({ title: h }))
-        });
-
-        // حساب إجمالي الربح لكل حساب
+        // إجمالي الأرباح
         const accountTotals = {};
+        const accounts = new Set();
         data.forEach(row => {
           const account = row[2];
           const profit = parseFloat(row[4]);
           if (!accountTotals[account]) accountTotals[account] = 0;
           accountTotals[account] += profit;
+          accounts.add(account);
         });
 
         const totalsDiv = document.getElementById("totals");
+        totalsDiv.innerHTML = '';
         for (const [acc, total] of Object.entries(accountTotals)) {
           const el = document.createElement("div");
           el.textContent = `• الحساب ${acc}: ${total.toFixed(2)} $`;
           totalsDiv.appendChild(el);
         }
+
+        // تعبئة الفلتر
+        const accountFilter = document.getElementById("accountFilter");
+        accounts.forEach(acc => {
+          const option = document.createElement("option");
+          option.value = acc;
+          option.textContent = acc;
+          accountFilter.appendChild(option);
+        });
+
+        const table = $('#dataTable').DataTable({
+          data: data,
+          columns: headers.map(h => ({ title: h }))
+        });
+
+        // فلترة حسب الحساب
+        accountFilter.addEventListener("change", () => {
+          const val = accountFilter.value;
+          table.column(2).search(val).draw();
+        });
+
+        // رسم بياني
+        const ctx = document.getElementById('profitChart').getContext('2d');
+        const chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: Object.keys(accountTotals),
+            datasets: [{
+              label: 'إجمالي الأرباح ($)',
+              data: Object.values(accountTotals),
+              backgroundColor: 'rgba(75, 192, 192, 0.5)',
+              borderColor: 'rgba(75, 192, 192, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true }
+            }
+          }
+        });
       } catch (err) {
         console.error("⚠️ Failed to load CSV:", err);
       }
