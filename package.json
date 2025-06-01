@@ -1,11 +1,12 @@
 {
-  "name": "mt4-dashboard",
+  "name": "telegram-bot-fahad-dashboard",
   "version": "1.0.0",
+  "description": "FahadScalp Trading Forex Dashboard",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.17.1"
+    "express": "^4.18.2"
   }
 }
