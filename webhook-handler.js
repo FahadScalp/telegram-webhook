@@ -12,27 +12,41 @@ router.post('/webhook', (req, res) => {
   const match = text.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d.]+) \$(?:\r)?\nProfit:\s*([\d.\-]+) \$(?:\r)?\nTime:\s*(.+)/);
 
   if (!match) {
-    console.log('❌ لم يتم التعرف على الرسالة:', text);
+    console.log('❌ تنسيق الرسالة غير صحيح:', text);
     return res.status(400).send('Invalid format');
   }
 
   const [ , name, account_id, balance, profit, time ] = match;
-  const data = {
-    name,
-    account_id,
-    balance: parseFloat(balance),
-    profit: parseFloat(profit),
-    time
-  };
-
   const dir = path.join(__dirname, 'accounts');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir);
 
   const filePath = path.join(dir, `${account_id}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  let existing = { account_id, alias: name, history: [] };
 
-  console.log(`✅ تم حفظ الحساب ${account_id}`);
-  res.send('Received and saved');
+  if (fs.existsSync(filePath)) {
+    try {
+      existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (e) {
+      console.error('❌ تعذر قراءة الملف القديم:', e.message);
+    }
+  }
+
+  existing.account_id = account_id;
+  existing.alias = name;
+  existing.history.push({
+    balance: parseFloat(balance),
+    profit: parseFloat(profit),
+    timestamp: new Date(time).getTime()
+  });
+
+  // احتفظ فقط بـ 20 سجلًا
+  if (existing.history.length > 20) {
+    existing.history = existing.history.slice(-20);
+  }
+
+  fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
+  console.log(`✅ تم تحديث الحساب: ${account_id}`);
+  res.send('Saved');
 });
 
 module.exports = router;
