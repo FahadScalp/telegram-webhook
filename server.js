@@ -10,8 +10,8 @@ app.use(express.static(__dirname));
 
 app.post('/webhook', (req, res) => {
   let msg = req.body?.startsWith("text=") ? decodeURIComponent(req.body.slice(5).replace(/\+/g, " ")) : req.body;
-  console.log("📥 Message Received:", msg);
 
+  console.log("📥 Message Received:", msg);
   if (!msg) return res.status(400).send("No message text found");
 
   const match = msg.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d.]+) \$(?:\r)?\nProfit:\s*([\d.\-]+) \$(?:\r)?\nTime:\s*(.+)/);
@@ -22,36 +22,21 @@ app.post('/webhook', (req, res) => {
 
   const [, name, account, balance, profit, timeRaw] = match;
   const time = timeRaw.trim().replace(/\./g, '-');
-  const newLine = `${time},${name},${account},${balance},${profit}`;
+  const line = `${time},${name},${account},${balance},${profit}\n`;
 
   const filePath = path.join(__dirname, 'data.csv');
-
-  // أول مرة: إنشاء الملف مع رؤوس الأعمدة
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, 'Time,Name,Account,Balance,Profit\n');
   }
 
-  const rows = fs.readFileSync(filePath, 'utf8').trim().split('\n');
-  const header = rows[0];
-  const dataRows = rows.slice(1);
-
-  const updatedMap = new Map();
-
-  // ملء الخريطة بآخر حالة لكل حساب
-  for (const row of dataRows) {
-    const parts = row.split(',');
-    const acc = parts[2]; // رقم الحساب
-    updatedMap.set(acc, row);
+  const lastLine = fs.readFileSync(filePath, 'utf8').trim().split('\n').pop();
+  if (lastLine && lastLine.trim() === line.trim()) {
+    console.log("⚠️ Duplicate skipped");
+    return res.send("Duplicate");
   }
 
-  // تحديث الحساب الحالي
-  updatedMap.set(account, newLine);
-
-  // إنشاء محتوى CSV جديد
-  const updatedCSV = [header, ...updatedMap.values()].join('\n') + '\n';
-  fs.writeFileSync(filePath, updatedCSV);
-
-  console.log("✅ Saved or Updated Account:", account);
+  fs.appendFileSync(filePath, line);
+  console.log("✅ Message Saved:", line.trim());
   res.send("OK");
 });
 
