@@ -1,42 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>📊 Fahad Trading Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fahad - Trading Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css"/>
   <style>
     body {
       font-family: Arial, sans-serif;
       padding: 20px;
-      background-color: #f7f7f7;
+      background-color: #f4f4f4;
     }
-    h2 {
+    h1 {
+      text-align: center;
       margin-bottom: 20px;
     }
-    .loss {
-      background-color: #ffe5e5 !important;
-    }
-    .profit {
-      background-color: #e5ffe5 !important;
-    }
-    .totals-row {
-      font-weight: bold;
-      text-align: right;
-    }
-    select {
-      margin-bottom: 10px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
     }
   </style>
 </head>
 <body>
-
-  <h2>📊 Fahad Trading Dashboard</h2>
-
-  <label>🔍 اختر رقم الحساب:</label>
-  <select id="accountFilter">
-    <option value="">عرض الكل</option>
-  </select>
-
+  <h1>📊 Trading Dashboard</h1>
   <table id="dataTable" class="display">
     <thead>
       <tr>
@@ -45,19 +31,12 @@
         <th>Account</th>
         <th>Balance</th>
         <th>Profit</th>
-        <th>Net Profit</th>
       </tr>
     </thead>
     <tbody></tbody>
-    <tfoot>
-      <tr class="totals-row">
-        <td colspan="5">📌 إجمالي الأرباح:</td>
-        <td id="grandTotal"></td>
-      </tr>
-    </tfoot>
   </table>
 
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script src="script.js"></script>
 </body>
