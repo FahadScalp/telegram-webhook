@@ -1,7 +1,7 @@
 {
-  "name": "telegram-bot-fahad-dashboard",
-  "version": "1.0.0",
-  "description": "FahadScalp Trading Forex Dashboard",
+  "name": "telegram-bot-fahad-dashboard-v2",
+  "version": "2.0.0",
+  "description": "FahadScalp Trading Forex Dashboard - Enhanced",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

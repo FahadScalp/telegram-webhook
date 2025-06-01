@@ -1,27 +1,26 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>FahadScalp Trading Forex</title>
-  <script defer src="script.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; background: #1e1e1e; color: #fff; margin: 0; padding: 0; }
+    .header { background: #111; padding: 10px; text-align: center; font-size: 24px; font-weight: bold; }
+    .dashboard { display: flex; flex-wrap: wrap; padding: 10px; justify-content: center; }
+    .card { background: #2c2c2c; border: 1px solid #444; border-radius: 8px; padding: 15px; margin: 10px; width: 280px; box-shadow: 0 0 8px #000; }
+    .card h3 { margin: 0 0 10px; }
+    .card button { background: #007bff; color: white; border: none; padding: 6px 10px; margin-top: 10px; cursor: pointer; border-radius: 4px; }
+    .card .info { margin: 5px 0; }
+    .highlight-profit { color: #00ff99; }
+    .highlight-loss { color: #ff5050; }
+  </style>
 </head>
-<body class="bg-gray-100 p-6">
-  <div class="text-3xl font-bold text-center text-blue-800 mb-6">FahadScalp Trading Forex</div>
+<body>
+  <div class="header">FahadScalp Trading Forex</div>
+  <div class="dashboard" id="dashboard"></div>
 
-  <div class="max-w-6xl mx-auto">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-      <input id="searchInput" type="text" placeholder="Search by ID or Alias..." class="flex-1 p-3 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring focus:border-blue-300">
-      <select id="sortFilter" class="p-3 border border-gray-300 rounded shadow-sm">
-        <option value="default">Sort by Default</option>
-        <option value="profit">Sort by Profit</option>
-        <option value="balance">Sort by Balance</option>
-      </select>
-      <button id="downloadBtn" class="p-3 bg-green-600 text-white rounded hover:bg-green-700">Download CSV</button>
-    </div>
-
-    <div id="dashboard" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-  </div>
+  <script src="script.js"></script>
 </body>
 </html>
