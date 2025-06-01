@@ -25,7 +25,7 @@ app.get('/admin', (req, res) => {
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
-
+app.post('/alert-save/:id', require('./alert-save'));
 app.post('/webhook', express.urlencoded({ extended: true }), require('./webhook-handler'));
 
 app.listen(PORT, () => {
