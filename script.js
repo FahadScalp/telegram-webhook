@@ -82,4 +82,4 @@ sortFilter.addEventListener('change', () => renderDashboard(getFilteredData()));
 downloadBtn.addEventListener('click', downloadCSV);
 
 fetchAccounts();
-setInterval(fetchAccounts, 30000);
+setInterval(fetchAccounts, 5000);
