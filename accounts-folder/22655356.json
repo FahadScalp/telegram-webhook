@@ -1,0 +1,26 @@
+{
+  "account_id": "22655356",
+  "alias": "FahadMain",
+  "login": {
+    "user": "FahadMain",
+    "pass": "Fa.123"
+  },
+  "telegram": {
+    "token": "null",
+    "chat_id": "null",
+    "message": "null",
+    "threshold": 50,
+    "step": 10,
+    "last_alert": 0
+  },
+  "history": [
+    {
+      "balance": 100.0,
+      "timestamp": "2025-05-31T12:00:00Z"
+    },
+    {
+      "balance": 121.31,
+      "timestamp": "2025-06-01T04:32:50Z"
+    }
+  ]
+}
