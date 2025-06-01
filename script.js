@@ -15,30 +15,27 @@ function renderDashboard(data) {
   dashboard.innerHTML = '';
   data.forEach(acc => {
     const profit = acc.last.balance - 100;
-    const card = document.createElement('div');
-    card.className = `p-4 rounded shadow bg-white border-l-4 ${
+    const container = document.createElement('div');
+    container.className = `p-4 rounded shadow bg-white border-l-4 ${
       profit > 0 ? 'border-green-500' : profit < 0 ? 'border-red-500' : 'border-gray-300'
-    } cursor-pointer`;
-    card.innerHTML = `
-      <div class="font-bold">${acc.alias || acc.account_id}</div>
-      <div>Balance: $${acc.last.balance.toFixed(2)}</div>
-      <div>Profit: <span class="${profit >= 0 ? 'text-green-600' : 'text-red-600'}">$${profit.toFixed(2)}</span></div>
-      <div class="text-xs text-gray-500 mt-2">${new Date(acc.last.timestamp).toLocaleString()}</div>
-    `;
-    card.onclick = () => showDetails(acc);
-    dashboard.appendChild(card);
-  });
-}
+    }`;
 
-function showDetails(account) {
-  let details = `Details for ${account.alias || account.account_id}:\n`;
-  for (let i = 1; i < account.history.length; i++) {
-    const prev = account.history[i - 1].balance;
-    const curr = account.history[i].balance;
-    const diff = curr - prev;
-    details += `#${i} | ${new Date(account.history[i].timestamp).toLocaleString()} | Balance: $${curr.toFixed(2)} | Δ: ${diff.toFixed(2)}\n`;
-  }
-  alert(details);
+    const detailsHTML = acc.history.map((h, i, arr) => {
+      if (i === 0) return '';
+      const diff = h.balance - arr[i - 1].balance;
+      return `<div class="text-sm text-gray-600">#${i} | ${new Date(h.timestamp).toLocaleString()} | Balance: $${h.balance.toFixed(2)} | Δ: ${diff.toFixed(2)}</div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="font-bold text-lg mb-1">${acc.alias || acc.account_id}</div>
+      <div class="mb-1">Balance: $${acc.last.balance.toFixed(2)}</div>
+      <div class="mb-2">Profit: <span class="${profit >= 0 ? 'text-green-600' : 'text-red-600'}">$${profit.toFixed(2)}</span></div>
+      <div class="bg-gray-50 p-2 rounded border">${detailsHTML || '<div class="text-gray-400">No history available</div>'}</div>
+      <div class="text-xs text-gray-400 mt-2">Last updated: ${new Date(acc.last.timestamp).toLocaleString()}</div>
+    `;
+
+    dashboard.appendChild(container);
+  });
 }
 
 searchInput.addEventListener('input', e => {
