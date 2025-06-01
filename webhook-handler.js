@@ -1,48 +1,38 @@
-
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+
 const router = express.Router();
 
-router.post('/webhook', express.urlencoded({ extended: true }), (req, res) => {
-  const text = req.body.text;
-  if (!text) return res.status(400).send('Missing text');
+router.post('/webhook', (req, res) => {
+  const text = req.body?.startsWith("text=")
+    ? decodeURIComponent(req.body.slice(5).replace(/\+/g, " "))
+    : req.body;
 
-  const lines = text.split('\n');
-  const data = {};
-  lines.forEach(line => {
-    const [key, ...rest] = line.split(':');
-    data[key.trim().toLowerCase()] = rest.join(':').trim().replace(' $', '');
-  });
+  const match = text.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d.]+) \$(?:\r)?\nProfit:\s*([\d.\-]+) \$(?:\r)?\nTime:\s*(.+)/);
 
-  const accountId = data['account'];
-  const alias = data['name'];
-  const balance = parseFloat(data['balance']);
-  const timestamp = new Date().toISOString();
-
-  if (!accountId || isNaN(balance)) {
-    return res.status(400).send('Invalid data');
+  if (!match) {
+    console.log('❌ لم يتم التعرف على الرسالة:', text);
+    return res.status(400).send('Invalid format');
   }
 
-  const accountsDir = path.join(__dirname, 'accounts');
-  if (!fs.existsSync(accountsDir)) {
-    fs.mkdirSync(accountsDir);
-  }
+  const [ , name, account_id, balance, profit, time ] = match;
+  const data = {
+    name,
+    account_id,
+    balance: parseFloat(balance),
+    profit: parseFloat(profit),
+    time
+  };
 
-  const filePath = path.join(accountsDir, accountId + '.json');
-  let accountData = { account_id: accountId, alias: alias, history: [] };
+  const dir = path.join(__dirname, 'accounts');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir);
 
-  if (fs.existsSync(filePath)) {
-    accountData = JSON.parse(fs.readFileSync(filePath));
-  }
+  const filePath = path.join(dir, `${account_id}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 
-  accountData.alias = alias;
-  accountData.account_id = accountId;
-  accountData.history.push({ balance, timestamp });
-
-  fs.writeFileSync(filePath, JSON.stringify(accountData, null, 2));
-
-  res.status(200).send(`OK: Account ${accountId} updated at ${new Date(timestamp).toLocaleTimeString()}`);
+  console.log(`✅ تم حفظ الحساب ${account_id}`);
+  res.send('Received and saved');
 });
 
 module.exports = router;
