@@ -25,8 +25,11 @@ router.post('/webhook', express.urlencoded({ extended: true }), (req, res) => {
   }
 
   const accountsDir = path.join(__dirname, 'accounts');
-  const filePath = path.join(accountsDir, accountId + '.json');
+  if (!fs.existsSync(accountsDir)) {
+    fs.mkdirSync(accountsDir);
+  }
 
+  const filePath = path.join(accountsDir, accountId + '.json');
   let accountData = { account_id: accountId, alias: alias, history: [] };
 
   if (fs.existsSync(filePath)) {
@@ -39,7 +42,7 @@ router.post('/webhook', express.urlencoded({ extended: true }), (req, res) => {
 
   fs.writeFileSync(filePath, JSON.stringify(accountData, null, 2));
 
-  res.status(200).send('Update received');
+  res.status(200).send(`OK: Account ${accountId} updated at ${new Date(timestamp).toLocaleTimeString()}`);
 });
 
 module.exports = router;

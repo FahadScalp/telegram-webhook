@@ -13,7 +13,7 @@ app.use('/', webhook);
 
 app.get('/accounts', (req, res) => {
   const dir = path.join(__dirname, 'accounts');
-  const files = fs.readdirSync(dir);
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
   const accounts = {};
   files.forEach(file => {
     const data = JSON.parse(fs.readFileSync(path.join(dir, file)));
