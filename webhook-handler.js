@@ -5,15 +5,25 @@ const path = require('path');
 const router = express.Router();
 
 router.post('/webhook', (req, res) => {
-  const text = req.body?.startsWith("text=")
-    ? decodeURIComponent(req.body.slice(5).replace(/\+/g, " "))
-    : req.body;
+  let text = '';
+
+  // استخلاص النص من body حسب نوع المحتوى
+  if (typeof req.body === 'string') {
+    text = req.body;
+  } else if (typeof req.body === 'object' && req.body.text) {
+    text = req.body.text;
+  } else if (typeof req.body === 'object') {
+    const raw = Object.keys(req.body)[0];
+    if (raw?.startsWith('text=')) {
+      text = decodeURIComponent(raw.slice(5).replace(/\+/g, ' '));
+    }
+  }
 
   const match = text.match(/Name:\s*(.+)\nAccount:\s*(\d+)\nBalance:\s*([\d.]+) \$(?:\r)?\nProfit:\s*([\d.\-]+) \$(?:\r)?\nTime:\s*(.+)/);
 
   if (!match) {
-    console.log('❌ تنسيق الرسالة غير صحيح:', text);
-    return res.status(400).send('Invalid format');
+    console.log('❌ تنسيق غير صالح:', text);
+    return res.status(400).send('Invalid message format');
   }
 
   const [ , name, account_id, balance, profit, time ] = match;
@@ -27,7 +37,7 @@ router.post('/webhook', (req, res) => {
     try {
       existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     } catch (e) {
-      console.error('❌ تعذر قراءة الملف القديم:', e.message);
+      console.error('⚠️ تعذر قراءة الملف السابق:', e.message);
     }
   }
 
@@ -39,13 +49,13 @@ router.post('/webhook', (req, res) => {
     timestamp: new Date(time).getTime()
   });
 
-  // احتفظ فقط بـ 20 سجلًا
+  // احتفظ بـ آخر 20 سجل فقط
   if (existing.history.length > 20) {
     existing.history = existing.history.slice(-20);
   }
 
   fs.writeFileSync(filePath, JSON.stringify(existing, null, 2));
-  console.log(`✅ تم تحديث الحساب: ${account_id}`);
+  console.log(`✅ تم حفظ أو تحديث الحساب: ${account_id}`);
   res.send('Saved');
 });
 
