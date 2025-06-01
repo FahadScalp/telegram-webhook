@@ -7,14 +7,14 @@ const router = express.Router();
 router.post('/webhook', (req, res) => {
   let text = '';
 
-  // استخلاص النص من body حسب نوع المحتوى
+  // استخراج النص بمرونة بناءً على نوع البيانات المرسلة
   if (typeof req.body === 'string') {
     text = req.body;
   } else if (typeof req.body === 'object' && req.body.text) {
     text = req.body.text;
   } else if (typeof req.body === 'object') {
     const raw = Object.keys(req.body)[0];
-    if (raw?.startsWith('text=')) {
+    if (raw && raw.startsWith('text=')) {
       text = decodeURIComponent(raw.slice(5).replace(/\+/g, ' '));
     }
   }
@@ -33,6 +33,7 @@ router.post('/webhook', (req, res) => {
   const filePath = path.join(dir, `${account_id}.json`);
   let existing = { account_id, alias: name, history: [] };
 
+  // محاولة قراءة بيانات سابقة إن وجدت
   if (fs.existsSync(filePath)) {
     try {
       existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -41,6 +42,7 @@ router.post('/webhook', (req, res) => {
     }
   }
 
+  // تحديث أو إضافة سجل جديد
   existing.account_id = account_id;
   existing.alias = name;
   existing.history.push({
@@ -49,7 +51,7 @@ router.post('/webhook', (req, res) => {
     timestamp: new Date(time).getTime()
   });
 
-  // احتفظ بـ آخر 20 سجل فقط
+  // الإبقاء على آخر 20 سجل فقط
   if (existing.history.length > 20) {
     existing.history = existing.history.slice(-20);
   }
