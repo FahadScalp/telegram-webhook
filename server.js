@@ -7,6 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(__dirname));
+app.get('/auth', require('./auth'));
 app.use('/accounts', express.static(path.join(__dirname, 'accounts')));
 app.get('/accounts', require('./accounts-api'));
 
