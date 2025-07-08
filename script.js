@@ -21,7 +21,11 @@ function getFilteredData() {
 
   const sortBy = sortFilter.value;
   if (sortBy === 'profit') {
-    data.sort((a, b) => (b.last.balance - 100) - (a.last.balance - 100));
+    data.sort((a, b) => {
+      const profitA = a.last.balance - (a.initial_balance ?? 100);
+      const profitB = b.last.balance - (b.initial_balance ?? 100);
+      return profitB - profitA;
+    });
   } else if (sortBy === 'balance') {
     data.sort((a, b) => b.last.balance - a.last.balance);
   }
@@ -31,7 +35,9 @@ function getFilteredData() {
 function renderDashboard(data) {
   dashboard.innerHTML = '';
   data.forEach(acc => {
-    const profit = acc.last.balance - acc.initial_balance;
+    const initial = acc.initial_balance ?? 100;
+    const profit = acc.last.balance - initial;
+
     const container = document.createElement('div');
     container.className = `p-3 rounded shadow bg-white border-l-4 ${
       profit > 0 ? 'border-green-500' : profit < 0 ? 'border-red-500' : 'border-gray-300'
@@ -58,7 +64,8 @@ function downloadCSV() {
   const rows = [["Alias", "Account ID", "Balance", "Profit", "Last Updated"]];
   Object.values(accounts).forEach(acc => {
     const last = acc.history[acc.history.length - 1];
-    const profit = last.balance - 100;
+    const initial = acc.initial_balance ?? 100;
+    const profit = last.balance - initial;
     rows.push([
       acc.alias || "",
       acc.account_id,
