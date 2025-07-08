@@ -1,3 +1,4 @@
+const accounts = {}; // 🧠 تخزين مؤقت للبيانات
 const express = require("express");
 const path = require("path");
 const app = express();
