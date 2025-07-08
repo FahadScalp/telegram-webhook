@@ -31,6 +31,10 @@ app.post("/webhook", (req, res) => {
     balance: data.balance,
     timestamp: data.timestamp
   });
+  app.get("/accounts", (req, res) => {
+  res.json(accounts);
+});
+
 
   res.send("✅ Webhook received");
 });
