@@ -1,46 +1,26 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const express = require("express");
+const path = require("path");
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 3000;
 
-// لتحليل body بصيغة x-www-form-urlencoded و JSON
-app.use(express.urlencoded({ extended: true }));
+// ✅ هذا هو السطر الضروري لتحليل JSON
 app.use(express.json());
 
-// تقديم الملفات الثابتة مثل index.html و script.js
-app.use(express.static(__dirname));
+// يقدم ملفات الواجهة
+app.use(express.static(path.join(__dirname, ".")));
 
-// استيراد webhook
-const webhook = require('./webhook-handler');
-app.use('/', webhook);
+// نقطة النهاية /webhook
+app.post("/webhook", (req, res) => {
+  const data = req.body;
+  if (!data.account_id || !data.initial_balance || !data.balance) {
+    return res.status(400).send("❌ تنسيق غير صالح");
+  }
 
-// Endpoint يعرض كل الحسابات الموجودة في مجلد accounts
-app.get('/accounts', (req, res) => {
-  const dir = path.join(__dirname, 'accounts');
-  const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
-  const accounts = {};
-
-  files.forEach(file => {
-    if (file.startsWith('.')) return; // تجاهل .gitkeep أو أي ملف مخفي
-
-    const filePath = path.join(dir, file);
-    try {
-      const content = fs.readFileSync(filePath, 'utf8');
-      if (!content.trim()) throw new Error('Empty file');
-      const data = JSON.parse(content);
-      if (data.account_id && data.history) {
-        accounts[data.account_id] = data;
-      }
-    } catch (err) {
-      console.error(`❌ Error parsing ${file}: ${err.message}`);
-    }
-  });
-
-  res.json(accounts);
+  console.log("✅ Received webhook:", data);
+  // هنا يمكن تخزين البيانات في الذاكرة أو ملف أو قاعدة بيانات
+  res.send("✅ Webhook received");
 });
 
-// بدء تشغيل السيرفر
-app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`✅ Server listening at http://localhost:${port}`);
 });
