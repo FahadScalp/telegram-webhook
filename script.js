@@ -22,8 +22,8 @@ function getFilteredData() {
   const sortBy = sortFilter.value;
   if (sortBy === 'profit') {
     data.sort((a, b) => {
-      const profitA = a.last.balance - (a.initial_balance ?? 100);
-      const profitB = b.last.balance - (b.initial_balance ?? 100);
+      const profitA = a.last.balance - (a.initial_balance ?? 1000);
+      const profitB = b.last.balance - (b.initial_balance ?? 1000);
       return profitB - profitA;
     });
   } else if (sortBy === 'balance') {
