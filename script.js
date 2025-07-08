@@ -31,7 +31,7 @@ function getFilteredData() {
 function renderDashboard(data) {
   dashboard.innerHTML = '';
   data.forEach(acc => {
-    const profit = acc.last.balance - 100;
+    const profit = acc.last.balance - acc.initial_balance;
     const container = document.createElement('div');
     container.className = `p-3 rounded shadow bg-white border-l-4 ${
       profit > 0 ? 'border-green-500' : profit < 0 ? 'border-red-500' : 'border-gray-300'
