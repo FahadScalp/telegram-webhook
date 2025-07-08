@@ -17,10 +17,24 @@ app.post("/webhook", (req, res) => {
     return res.status(400).send("❌ تنسيق غير صالح");
   }
 
-  console.log("✅ Received webhook:", data);
-  // هنا يمكن تخزين البيانات في الذاكرة أو ملف أو قاعدة بيانات
+  const id = data.account_id;
+  if (!accounts[id]) {
+    accounts[id] = {
+      account_id: id,
+      alias: data.alias,
+      initial_balance: data.initial_balance,
+      history: []
+    };
+  }
+
+  accounts[id].history.push({
+    balance: data.balance,
+    timestamp: data.timestamp
+  });
+
   res.send("✅ Webhook received");
 });
+
 
 app.listen(port, () => {
   console.log(`✅ Server listening at http://localhost:${port}`);
