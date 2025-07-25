@@ -9,3 +9,7 @@
     "express": "^4.17.1"
   }
 }
+"scripts": {
+  "start-signal": "node signal-server.js"
+}
+
