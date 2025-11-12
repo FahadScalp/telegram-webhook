@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: mt4-dashboard
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    disk:
+      name: data
+      mountPath: /opt/render/project/src
+      sizeGB: 1
