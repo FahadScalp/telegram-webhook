@@ -2,14 +2,7 @@
   "name": "mt4-dashboard",
   "version": "1.0.0",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.17.1"
-  }
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "express": "^4.17.1" },
+  "engines": { "node": "20.x" }
 }
-"scripts": {
-  "start-signal": "node signal-server.js"
-}
-
