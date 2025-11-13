@@ -1,4 +1,4 @@
-// server.js — MT4 Accounts Dashboard (stable)
+// server.js — مع حماية Basic Auth للواجهة
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
@@ -7,67 +7,57 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ===== In-memory store =====
-const accounts = {}; // { [account_id]: { account_id, alias, initial_balance, history:[{balance,timestamp}], last:{balance,timestamp} } }
+const accounts = {};
 
 // ===== Middlewares =====
-app.use(express.json());                             // parse JSON
-app.use(express.static(path.join(__dirname, ".")));  // serve index.html, script.js, ...
+app.use(express.json());
 
-// Helper: ensure account object exists
-function ensureAccount(id, alias, initial) {
-  if (!accounts[id]) {
-    accounts[id] = {
-      account_id: id,
-      alias: alias || "",
-      initial_balance: Number(initial) || 0,
-      history: []
-    };
-  } else {
-    // لو تغيّر alias أو initial_balance نحدّثهم (اختياري)
-    if (alias && accounts[id].alias !== alias) accounts[id].alias = alias;
-    if (initial && Number(initial) !== Number(accounts[id].initial_balance)) {
-      accounts[id].initial_balance = Number(initial);
-    }
+// ===== Basic Auth (يحمي الواجهة فقط) =====
+const USER = process.env.DASH_USER || "admin";
+const PASS = process.env.DASH_PASS || "1234"; // غيّرها من بيئة Render
+
+function authUI(req, res, next) {
+  const header = req.headers.authorization || "";
+  const [scheme, encoded] = header.split(" ");
+  if (scheme === "Basic" && encoded) {
+    const decoded = Buffer.from(encoded, "base64").toString();
+    const [user, pass] = decoded.split(":");
+    if (user === USER && pass === PASS) return next();
   }
+  res.set("WWW-Authenticate", 'Basic realm="FahadScalp Dashboard"');
+  return res.status(401).send("Authentication required");
 }
 
-// ===== Webhook to receive updates from MT4 =====
+// ===== Webhook (مفتوح لبوت MT4) =====
 app.post("/webhook", (req, res) => {
   const data = req.body || {};
-  // التحقق الأساسي
   if (!data.account_id || data.initial_balance === undefined || data.balance === undefined) {
     return res.status(400).send("❌ تنسيق غير صالح");
   }
-
   const id = String(data.account_id);
   const alias = data.alias ? String(data.alias) : "";
   const initial = Number(data.initial_balance);
   const balance = Number(data.balance);
   const ts = data.timestamp ? Number(data.timestamp) : Date.now();
+  if (!isFinite(initial) || !isFinite(balance)) return res.status(400).send("❌ قيم غير رقمية");
 
-  if (!isFinite(initial) || !isFinite(balance)) {
-    return res.status(400).send("❌ قيم غير رقمية");
-  }
-
-  ensureAccount(id, alias, initial);
+  if (!accounts[id]) accounts[id] = { account_id: id, alias, initial_balance: initial, history: [] };
+  // تحديث alias/initial لو تغيّروا
+  if (alias) accounts[id].alias = alias;
+  if (isFinite(initial)) accounts[id].initial_balance = initial;
 
   accounts[id].history.push({ balance, timestamp: ts });
-
-  // احتفظ بآخر 200 نقطة فقط (اختياري)
-  if (accounts[id].history.length > 200) {
-    accounts[id].history = accounts[id].history.slice(-200);
-  }
-
-  // احسب "last" للاختصار في الواجهة
-  const last = accounts[id].history[accounts[id].history.length - 1];
-  accounts[id].last = last;
+  if (accounts[id].history.length > 200) accounts[id].history = accounts[id].history.slice(-200);
+  accounts[id].last = accounts[id].history[accounts[id].history.length - 1];
 
   return res.status(200).send("✅ Webhook received");
 });
 
-// ===== Accounts endpoint for the dashboard =====
-app.get("/accounts", (req, res) => {
-  // جهّز نسخة مرتبة للعرض
+// (اختياري) منع POST على الجذر
+app.post("/", (req, res) => res.status(404).send("Use POST /webhook"));
+
+// ===== واجهة + /accounts (محميّة) =====
+app.get("/accounts", authUI, (req, res) => {
   const shaped = {};
   for (const [id, acc] of Object.entries(accounts)) {
     const last = acc.history.length ? acc.history[acc.history.length - 1] : { balance: acc.initial_balance, timestamp: null };
@@ -82,13 +72,9 @@ app.get("/accounts", (req, res) => {
   res.json(shaped);
 });
 
-// (اختياري) دعم POST "/" لو كان الـEA يرسل للجذر بالغلط
-app.post("/", (req, res) => {
-  // إمّا نعيد توجيه بسيط، أو نستدعي نفس المنطق — هنا نرجّع خطأ واضح:
-  return res.status(404).send("Use POST /webhook");
-});
+// قدّم الملفات الساكنة (index.html, script.js, …) بعد auth
+app.use("/", authUI, express.static(path.join(__dirname, ".")));
 
-// ===== Start =====
 app.listen(PORT, () => {
-  console.log(`✅ Server listening at http://localhost:${PORT}`);
+  console.log(`✅ Server listening at :${PORT}`);
 });
