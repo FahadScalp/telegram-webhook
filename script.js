@@ -146,7 +146,7 @@ function renderDashboard(data) {
   data.forEach(acc => {
     const profit = acc.profit;
     const card = document.createElement('article');
-    card.className = `card ${profit > 0 ? 'pos' : profit < 0 ? 'neg' : ''}`;
+    card.className = `card ${profit > 0 ? 'pos' : profit < 0 ? 'neg' : 'zero'}`;
 
     // ===== العنوان =====
     const title = document.createElement('div');
