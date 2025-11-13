@@ -132,3 +132,9 @@ h1{margin:0;font-weight:800;letter-spacing:.2px;color:#1e3a8a}
 @media (max-width:600px){
   .toolbar .field{min-width:0}
 }
+
+/* إخفاء الرسم الصغير (sparkline) */
+.spark { 
+  display: none !important;
+}
+
