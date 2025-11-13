@@ -148,6 +148,14 @@ function renderDashboard(data) {
     const card = document.createElement('article');
     card.className = `card ${profit > 0 ? 'pos' : profit < 0 ? 'neg' : 'zero'}`;
 
+    // افتح التفاصيل عند الضغط على أي مكان في الكرت (مع استثناء أزرار صغيرة)
+card.addEventListener('click', (e) => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'button' || e.target.classList.contains('edit')) return; // لا تفتح عند Edit goal
+  openDetail(acc);
+});
+
+
     // ===== العنوان =====
     const title = document.createElement('div');
     title.className = 'title';
