@@ -220,6 +220,141 @@ function renderDashboard(data) {
   });
 }
 
+// ===== Weekly detail (last 7 days) =====
+const dp  = document.getElementById('detailPanel');
+const db  = document.getElementById('detailBackdrop');
+const dttl= document.getElementById('detailTitle');
+const dsub= document.getElementById('detailSub');
+const drng= document.getElementById('detailRange');
+const dst = document.getElementById('detailStats');
+const dch = document.getElementById('weeklyChart');
+const dtb = document.getElementById('detailTable').querySelector('tbody');
+document.getElementById('detailClose').onclick = closeDetail;
+db.onclick = closeDetail;
+
+function openDetail(acc){
+  // شكل العنوان
+  dttl.textContent = acc.alias || acc.account_id;
+  dsub.textContent = acc.alias && acc.account_id ? `#${acc.account_id}` : '';
+
+  // نطاق الأسبوع
+  const end = Date.now();
+  const start = end - 7*24*60*60*1000;
+  drng.textContent = `${new Date(start).toLocaleString()} — ${new Date(end).toLocaleString()}`;
+
+  // فلترة آخر 7 أيام
+  const weekHist = acc.history.filter(h => h.timestamp >= start && h.timestamp <= end);
+  const points = weekHist.length ? weekHist : [acc.history[acc.history.length-1] || acc.last];
+
+  // إحصاءات سريعة
+  const first = points[0]?.balance ?? acc.initial;
+  const last  = points[points.length-1]?.balance ?? acc.last.balance;
+  const delta = last - first;
+  const max   = Math.max(...points.map(p=>p.balance));
+  const min   = Math.min(...points.map(p=>p.balance));
+
+  dst.innerHTML = `
+    <span class="chip">First: <b>$${toMoney(first)}</b></span>
+    <span class="chip">Last: <b>$${toMoney(last)}</b></span>
+    <span class="chip">Δ Week: <b class="${delta>=0?'pos':'neg'}">$${toMoney(delta)}</b></span>
+    <span class="chip">Max: <b>$${toMoney(max)}</b></span>
+    <span class="chip">Min: <b>$${toMoney(min)}</b></span>
+  `;
+
+  // رسم الخط مع محاور وأيام أسبوع
+  dch.innerHTML = chartWeeklySVG(points);
+
+  // جدول يومي (group by day)
+  const byDay = groupByDay(points);
+  dtb.innerHTML = Object.keys(byDay).sort().map(day => {
+    const arr= byDay[day];
+    const f= arr[0]?.balance ?? 0;
+    const l= arr[arr.length-1]?.balance ?? f;
+    const d= l - f;
+    return `<tr>
+      <td>${day}</td>
+      <td>$${toMoney(f)}</td>
+      <td>$${toMoney(l)}</td>
+      <td class="${d>=0?'pos':'neg'}">$${toMoney(d)}</td>
+    </tr>`;
+  }).join('');
+
+  // فتح اللوحة
+  db.classList.remove('hidden'); dp.classList.remove('hidden');
+  requestAnimationFrame(()=>{ db.classList.add('show'); dp.classList.add('open'); });
+}
+
+function closeDetail(){
+  db.classList.remove('show'); dp.classList.remove('open');
+  setTimeout(()=>{ db.classList.add('hidden'); dp.classList.add('hidden'); }, 200);
+}
+
+function groupByDay(points){
+  const o={};
+  points.forEach(p=>{
+    const d=new Date(p.timestamp);
+    const k= `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+    (o[k]=o[k]||[]).push(p);
+  });
+  return o;
+}
+
+// رسم أسبوعي: شبكة + محاور + خط + نقاط + Tooltip
+function chartWeeklySVG(points){
+  const W = dch.clientWidth || 760, H = 260, P = 36;
+  const xs = points.map(p=>({ x:p.timestamp, y:p.balance }));
+  const minX = xs[0]?.x ?? Date.now()-7*864e5, maxX = xs[xs.length-1]?.x ?? Date.now();
+  const minY = Math.min(...xs.map(p=>p.y), 0), maxY = Math.max(...xs.map(p=>p.y), 1);
+  const xmap = t => P + ( (t - minX) / (maxX - minX || 1) ) * (W - 2*P);
+  const ymap = v => H - P - ( (v - minY) / (maxY - minY || 1) ) * (H - 2*P);
+
+  // محاور اليوم (7 فواصل)
+  const days = Array.from({length:8}, (_,i)=> minX + i*( (maxX-minX)/7 || 1));
+  const gridX = days.map(t=> `<line x1="${xmap(t).toFixed(1)}" y1="${P}" x2="${xmap(t).toFixed(1)}" y2="${H-P}" stroke="#e5e7eb"/>`).join('');
+  const labelsX = days.map(t=> `<text x="${xmap(t).toFixed(1)}" y="${H-10}" text-anchor="middle" fill="#64748b" font-size="11">${new Date(t).toLocaleDateString()}</text>`).join('');
+
+  // خطوط أفقية (4)
+  const rows = 4;
+  const gridY = Array.from({length:rows+1},(_,i)=> {
+    const y = P + i*((H-2*P)/rows);
+    return `<line x1="${P}" y1="${y.toFixed(1)}" x2="${(W-P).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#eef2f7"/>`;
+  }).join('');
+
+  // خط البيانات
+  const path = xs.map((p,i)=> `${i?'L':'M'}${xmap(p.x).toFixed(1)},${ymap(p.y).toFixed(1)}`).join(' ');
+  const dots = xs.map(p=> `<circle cx="${xmap(p.x).toFixed(1)}" cy="${ymap(p.y).toFixed(1)}" r="3" fill="#16a34a"/>`).join('');
+
+  // Tooltip بسيط
+  const tipId = 'tip-'+Math.random().toString(36).slice(2);
+  const handlers = xs.map(p=>{
+    const x = xmap(p.x), y = ymap(p.y);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="10" fill="transparent"
+      onmousemove="document.getElementById('${tipId}').style.display='block';
+                   document.getElementById('${tipId}').style.left='${x}px';
+                   document.getElementById('${tipId}').style.top='${y}px';
+                   document.getElementById('${tipId}').innerHTML='${new Date(p.x).toLocaleString()}<br>$${toMoney(p.y)}';"
+      onmouseout="document.getElementById('${tipId}').style.display='none';"/>`;
+  }).join('');
+
+  return `
+    <div style="position:relative; width:100%; height:${H}px">
+      <svg width="${W}" height="${H}">
+        <rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>
+        ${gridX} ${gridY}
+        <path d="${path}" fill="none" stroke="#16a34a" stroke-width="2"/>
+        ${dots}
+        ${handlers}
+        ${labelsX}
+        <!-- y-axis min/max labels -->
+        <text x="${P-6}" y="${H-P+4}" text-anchor="end" fill="#64748b" font-size="11">$${toMoney(minY)}</text>
+        <text x="${P-6}" y="${P+4}" text-anchor="end" fill="#64748b" font-size="11">$${toMoney(maxY)}</text>
+      </svg>
+      <div id="${tipId}" class="tip" style="display:none; position:absolute;"></div>
+    </div>
+  `;
+}
+
+
 // ===================== CSV Export ===================== //
 function downloadCSV() {
   const rows = [["Alias", "Account ID", "Initial", "Balance", "Profit", "Today", "Last Updated"]];
