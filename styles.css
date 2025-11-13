@@ -138,3 +138,58 @@ h1{margin:0;font-weight:800;letter-spacing:.2px;color:#1e3a8a}
   display: none !important;
 }
 
+/* ===== Drawer (weekly detail) ===== */
+.hidden{display:none !important}
+.backdrop{
+  position:fixed; inset:0; background:rgba(15,18,34,.35);
+  backdrop-filter: blur(2px); z-index:80; opacity:0; transition:.2s opacity;
+}
+.drawer{
+  position:fixed; top:0; bottom:0; inset-inline-end:0; width:min(860px, 100%);
+  background:var(--card); border-inline-start:1px solid var(--border);
+  box-shadow: -12px 0 24px rgba(0,0,0,.1); z-index:90;
+  transform: translateX(100%); transition:.25s transform;
+  display:flex; flex-direction:column;
+}
+.drawer.open{ transform: translateX(0); }
+.backdrop.show{ opacity:1; }
+
+.drawer-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; border-bottom:1px solid var(--border);
+}
+.drawer-title{ font-weight:800; font-size:18px }
+.drawer-sub{ color:var(--muted); font-size:13px; margin-top:2px }
+.btn-close{
+  border:1px solid var(--border); background:#fff; width:32px; height:32px;
+  border-radius:8px; font-size:20px; cursor:pointer; line-height:28px;
+}
+.drawer-body{ padding:14px 16px; overflow:auto }
+
+.stats-row{
+  display:flex; gap:18px; flex-wrap:wrap; margin-bottom:10px;
+}
+.stats-row .chip{ background:#f8fafc; border:1px solid var(--border);
+  padding:6px 10px; border-radius:10px; font-size:13px; color:#334155 }
+.stats-row .pos{ color:var(--good); font-weight:700 }
+.stats-row .neg{ color:var(--bad); font-weight:700 }
+
+.chart-wrap{ background:#fff; border:1px solid var(--border);
+  border-radius:12px; box-shadow:var(--shadow); padding:10px; margin:10px 0 14px; }
+.chart-head{ display:flex; justify-content:space-between; margin-bottom:8px; font-weight:700 }
+.chart{ width:100%; height:260px; color:#0f172a }
+.legend{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-top:6px }
+.legend .sep{ width:1px; height:12px; background:#cbd5e1; display:inline-block; margin:0 6px }
+
+.table-wrap{ background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden }
+.mini-table{ width:100%; border-collapse:collapse; font-size:13px }
+.mini-table th, .mini-table td{ padding:8px 10px; border-bottom:1px solid var(--border); text-align:start }
+.mini-table th{ background:#f8fafc; color:#334155 }
+.mini-table tr:last-child td{ border-bottom:none }
+
+/* chart tooltip */
+.chart .tip{
+  position:absolute; pointer-events:none; background:#111827; color:#fff;
+  padding:6px 8px; border-radius:6px; font-size:12px; transform:translate(-50%,-120%);
+  white-space:nowrap; box-shadow:0 6px 18px rgba(0,0,0,.2)
+}
