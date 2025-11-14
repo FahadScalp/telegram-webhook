@@ -82,6 +82,22 @@ h1{margin:0;font-weight:800;letter-spacing:.2px;color:#1e3a8a}
 .muted{color:var(--muted)}
 .pos{color:var(--good);font-weight:700}
 .neg{color:var(--bad);font-weight:700}
+/* توزيع الأعمدة لما يكون عندنا Initial + Balance + Equity */
+.info.three > div{
+  flex:1 1 120px;     /* كل عنصر يأخذ مساحة متساوية */
+  min-width:120px;    /* يلفّ سطر جديد على الشاشات الصغيرة */
+}
+
+/* لون الإيكويتي (أزرق) */
+.eqv{
+  color: var(--eq, #2563eb);
+  font-weight: 800;
+}
+
+/* تحسين بسيط للموبايل */
+@media (max-width: 560px){
+  .info.three > div{ min-width: calc(50% - 10px); }
+}
 
 /* History box */
 .history{
