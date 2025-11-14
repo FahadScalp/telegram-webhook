@@ -193,3 +193,22 @@ h1{margin:0;font-weight:800;letter-spacing:.2px;color:#1e3a8a}
   padding:6px 8px; border-radius:6px; font-size:12px; transform:translate(-50%,-120%);
   white-space:nowrap; box-shadow:0 6px 18px rgba(0,0,0,.2)
 }
+
+/* Segmented buttons */
+.seg{display:flex; gap:6px}
+.seg-btn{
+  padding:6px 10px; border:1px solid var(--border); background:#fff; color:#0f172a;
+  border-radius:8px; cursor:pointer; font-weight:700; font-size:13px;
+}
+.seg-btn.active{ background:#0f172a; color:#fff; border-color:#0f172a }
+
+/* Close button bigger */
+.btn-close.big{ width:40px; height:40px; font-size:24px; line-height:36px }
+.btn-close.big:hover{ background:#f8fafc }
+
+/* Dual chart colors */
+:root{ --bal:#16a34a; --eq:#2563eb; --dd:#ef4444; }
+
+/* Drawdown bars */
+.dd-bar{ fill: rgba(239, 68, 68, .30) }
+.dd-axis{ fill:#64748b; font-size:11px }
