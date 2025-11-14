@@ -3,6 +3,7 @@ const dashboard   = document.getElementById('dashboard');
 const searchInput = document.getElementById('searchInput');
 const sortFilter  = document.getElementById('sortFilter');
 const downloadBtn = document.getElementById('downloadBtn');
+const toMoney = n => (Number(n)||0).toFixed(2);
 
 // لوحة التفاصيل (الدرور)
 const dp   = document.getElementById('detailPanel');
@@ -37,38 +38,59 @@ async function fetchAccounts(){
   renderDashboard(getFilteredData());
 }
 
-function getFilteredData(){
-  const val = (searchInput?.value || '').toLowerCase().trim();
-  let data = Object.values(accounts).map(acc=>{
-  const history = Array.isArray(acc.history) ? acc.history.map(h=>({
-    balance: safe(h.balance),
-    equity : Number.isFinite(Number(h.equity)) ? Number(h.equity) : NaN, // ← سطر مهم
-    timestamp: fixTsMs(h.timestamp)
-  })) : [];
-  return {
-    ...acc,
-    history,
-    last: history[history.length-1] || { balance: safe(acc.balance), equity: Number(acc.equity)||NaN, timestamp: Date.now() },
-    initial_balance: isFinite(acc.initial_balance) ? Number(acc.initial_balance) : (history[0]?.balance ?? 0),
-    today: safe(acc.today, 0),
-    equity: Number(acc.equity)||NaN // احتياطي لو ما جت ضمن history
-  };
-});
-.filter(acc =>
-    (acc.alias && acc.alias.toLowerCase().includes(val)) ||
-    (acc.account_id && String(acc.account_id).toLowerCase().includes(val))
+function getFilteredData() {
+  const val = (searchInput.value || "").toLowerCase();
+
+  // حوّل history إلى شكل موحّد + أصلح timestamp + التقط equity لو موجود
+  const data = Object.values(accounts).map(acc => {
+    const history = Array.isArray(acc.history) ? acc.history.map(h => ({
+      balance: Number(h.balance) || 0,
+      equity:  Number(h.equity),                 // قد يكون undefined — ما عندنا مشكلة
+      timestamp: fixTsMs(h.timestamp)            // يتعامل مع ms أو s
+    })) : [];
+
+    const last = history.length
+      ? history[history.length - 1]
+      : {
+          balance: Number(acc.balance) || 0,
+          equity:  Number(acc.equity),           // احتياطي إذا السيرفر يرسلها خارج history
+          timestamp: Date.now()
+        };
+
+    return {
+      ...acc,
+      history,
+      last,
+      initial_balance: Number.isFinite(Number(acc.initial_balance))
+        ? Number(acc.initial_balance)
+        : (history[0]?.balance ?? 0),
+      today: Number(acc.today) || 0,
+      equity: Number(acc.equity)                 // احتياطي للاستخدام إذا history لا يحتوي equity
+    };
+  })
+  // فلترة البحث (alias أو account_id)
+  .filter(acc =>
+    (acc.alias || "").toLowerCase().includes(val) ||
+    (acc.account_id || "").toLowerCase().includes(val)
   );
 
-  const sortBy = sortFilter?.value || 'default';
-  if (sortBy==='profit'){
-    data.sort((a,b)=> (b.last.balance-(b.initial_balance??0)) - (a.last.balance-(a.initial_balance??0)));
-  }else if(sortBy==='balance'){
-    data.sort((a,b)=> b.last.balance - a.last.balance);
-  }else if(sortBy==='recent'){
-    data.sort((a,b)=> b.last.timestamp - a.last.timestamp);
+  // الفرز
+  const sortBy = sortFilter.value;
+  if (sortBy === "profit") {
+    data.sort((a, b) => {
+      const pA = (a.last.balance - (a.initial_balance ?? 0));
+      const pB = (b.last.balance - (b.initial_balance ?? 0));
+      return pB - pA;
+    });
+  } else if (sortBy === "balance") {
+    data.sort((a, b) => b.last.balance - a.last.balance);
+  } else if (sortBy === "recent") {
+    data.sort((a, b) => (b.last.timestamp || 0) - (a.last.timestamp || 0));
   }
+
   return data;
 }
+
 
 function totalsBarHTML(list){
   const sum=(f)=>list.reduce((s,a)=>s+f(a),0);
@@ -85,64 +107,68 @@ function totalsBarHTML(list){
     </div>`;
 }
 
-function renderDashboard(data){
-  dashboard.innerHTML = totalsBarHTML(data);
+function renderDashboard(data) {
+  dashboard.innerHTML = ""; // لو عندك totalsBarHTML حطّه هنا قبل التفريغ
 
-  data.forEach(acc=>{
+  data.forEach(acc => {
     const initial = acc.initial_balance ?? 0;
-    const profit  = safe(acc.last.balance) - initial;
+    const profit  = (acc.last.balance ?? 0) - initial;
 
-    // نحاول أخذ الإيكويتي من آخر نقطة بالتاريخ، وإن ما وُجد نستخدم acc.equity إن كان موجود
-    const lastEq = Number.isFinite(acc.last?.equity) ? acc.last.equity
-                  : (Number.isFinite(acc.equity) ? Number(acc.equity) : NaN);
+    // التقط الإيكويتي من آخر history ولو غير موجود استخدم acc.equity كاحتياطي
+    const equityVal = Number.isFinite(acc.last?.equity) ? acc.last.equity
+                    : (Number.isFinite(acc.equity) ? acc.equity : NaN);
 
-    const card = document.createElement('article');
-    card.className = `card ${profit>0?'pos':profit<0?'neg':'zero'}`;
-    card.innerHTML = `
+    const container = document.createElement("article");
+    container.className = `card ${profit>0?'pos':profit<0?'neg':'zero'}`;
+
+    container.innerHTML = `
       <div class="title">
-        <span>${acc.alias || acc.account_id}</span>
-        ${acc.alias && acc.account_id ? `<small>(#${acc.account_id})</small>`:''}
+        <span>${acc.alias || acc.account_id || "-"}</span>
+        ${acc.account_id ? `<small>(#${acc.account_id})</small>` : ""}
       </div>
 
       <!-- السطر العلوي: Initial + Balance + Equity -->
       <div class="info three">
         <div>Initial: <b>$${toMoney(initial)}</b></div>
-        <div>Balance: <b>$${toMoney(acc.last.balance)}</b></div>
-        <div>Equity: <b class="eqv">${Number.isFinite(lastEq) ? '$'+toMoney(lastEq) : '—'}</b></div>
+        <div>Balance: <b>$${toMoney(acc.last.balance || 0)}</b></div>
+        <div>Equity: <b class="eqv">${Number.isFinite(equityVal) ? '$'+toMoney(equityVal) : '—'}</b></div>
       </div>
 
       <!-- السطر الثاني: Today + Profit -->
       <div class="info">
-        <div>Today: <b class="${acc.today>=0?'pos':'neg'}">$${toMoney(acc.today)}</b></div>
-        <div>Profit: <b class="${profit>=0?'pos':'neg'}">$${toMoney(profit)}</b></div>
+        <div>Today: <b class="${(acc.today||0) >= 0 ? 'pos':'neg'}">$${toMoney(acc.today || 0)}</b></div>
+        <div>Profit: <b class="${profit >= 0 ? 'pos':'neg'}">$${toMoney(profit)}</b></div>
       </div>
 
       <div class="history">
         ${
-          acc.history.slice(-3).map((h,i,arr)=>{
-            const prev = i===0? h.balance : arr[i-1].balance;
-            const diff = h.balance - prev;
-            return `• ${new Date(h.timestamp).toLocaleString()} | $${toMoney(h.balance)} | Δ: ${toMoney(diff)}`;
-          }).join('<br>') || '<span class="muted">No history</span>'
+          (acc.history || []).slice(-3).map((h, i, arr) => {
+            const prev = i === 0 ? h.balance : arr[i-1].balance;
+            const diff = (h.balance||0) - (prev||0);
+            return `• ${new Date(h.timestamp).toLocaleString()} | $${toMoney(h.balance||0)} | Δ: ${toMoney(diff)}`;
+          }).join("<br>") || '<span class="muted">No history</span>'
         }
       </div>
 
       <div class="goal">
-        <div class="progress"><i style="width:${Math.max(0,Math.min(100,(profit/(getGoal(acc.account_id)||50))*100))}%"></i></div>
-        <div class="edit" onclick="editGoal('${acc.account_id}')">Edit goal</div>
+        <div class="progress">
+          <i style="width:${Math.max(0,Math.min(100, (profit/(getGoal(acc.account_id)||50))*100))}%"></i>
+        </div>
+        <div class="edit" onclick="editGoal('${acc.account_id||''}'); event.stopPropagation();">Edit goal</div>
       </div>
 
-      <div class="muted" style="margin-top:6px">Last updated: ${new Date(acc.last.timestamp).toLocaleString()}</div>
+      <div class="muted" style="margin-top:6px">
+        Last updated: ${new Date(acc.last.timestamp || Date.now()).toLocaleString()}
+      </div>
     `;
 
-    card.addEventListener('click',(e)=>{
-      if(e.target.classList && e.target.classList.contains('edit')) return;
-      openDetail(acc);
-    });
+    // افتح اللوحة الجانبية عند الضغط (لو عندك openDetail)
+    container.addEventListener("click", () => { if (typeof openDetail==='function') openDetail(acc); });
 
-    dashboard.appendChild(card);
+    dashboard.appendChild(container);
   });
 }
+
 
 
 // ===================== الأهداف (محفوظة محليًا) ===================== //
