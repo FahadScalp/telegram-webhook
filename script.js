@@ -1,398 +1,385 @@
-// ===================== DOM Elements ===================== //
-const dashboard   = document.getElementById('dashboard');
-const totalsBar   = document.getElementById('totalsBar');
+const dashboard = document.getElementById('dashboard');
 const searchInput = document.getElementById('searchInput');
-const sortFilter  = document.getElementById('sortFilter');
+const sortFilter = document.getElementById('sortFilter');
 const downloadBtn = document.getElementById('downloadBtn');
 
 let accounts = {};
-let lastFetchOk = true;
+let currentDetailAcc = null;
+let currentDays = 7;
 
-// ===================== Helper Functions ===================== //
-const toMoney = (v) => (isFinite(v) ? Number(v).toFixed(2) : '0.00');
-const safe = (v, def = 0) => (isFinite(Number(v)) ? Number(v) : def);
-
-const fixTsMs = (ts) => {
-  if (ts == null) return Date.now();
-  const n = Number(ts);
-  if (!isFinite(n)) return Date.now();
-  return n < 1e12 ? n * 1000 : n; // seconds → ms
-};
-const fmtDate = (ts) => new Date(fixTsMs(ts)).toLocaleString();
-
-const startOfDayMs = (() => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-})();
-
-const staleBadge = (ts) => {
-  const mins = Math.round((Date.now() - fixTsMs(ts)) / 60000);
-  const c = mins <= 10 ? 'dot-ok' : mins <= 30 ? 'dot-warn' : 'dot-bad';
-  return `<span class="dot ${c}"></span><span>${mins}m</span>`;
-};
-
-// Sparkline صغيرة
-const sparkline = (arr) => {
-  const pts = arr.slice(-40).map(h => safe(h.balance));
-  if (!pts.length) return '';
-  const min = Math.min(...pts), max = Math.max(...pts), W = 120, H = 24;
-  const xs = pts.map((v, i) => [
-    i * (W / (pts.length - 1 || 1)),
-    H - (H * (v - min) / (max - min || 1))
-  ]);
-  const d = xs.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  return `<svg width="${W}" height="${H}" class="spark"><path d="${d}" fill="none" stroke="currentColor" stroke-width="1"/></svg>`;
-};
-
-const resolveInitial = (acc) => {
-  if (isFinite(acc?.initial_balance)) return Number(acc.initial_balance);
-  const first = acc?.history?.[0];
-  if (first && isFinite(first.balance)) return Number(first.balance);
-  return 0;
-};
-
-// الأهداف (Goal)
-const goals = JSON.parse(localStorage.getItem('goals') || '{}');
-const getGoal = id => Number(goals[id] || 50);
-const setGoal = (id, v) => { goals[id] = v; localStorage.setItem('goals', JSON.stringify(goals)); };
-
-// ===================== Data Shaping ===================== //
-const shapeAccount = (acc) => {
-  const history = Array.isArray(acc?.history)
-    ? acc.history.map(h => ({ balance: safe(h.balance), timestamp: fixTsMs(h.timestamp) }))
-    : [];
-
-  const last = history[history.length - 1] || { balance: 0, timestamp: Date.now() };
-  const initial = resolveInitial(acc);
-  const profit = safe(last.balance) - initial;
-  const firstToday = history.find(h => h.timestamp >= startOfDayMs) || history[0] || { balance: initial };
-  const todayPnL = safe(last.balance) - safe(firstToday.balance);
-
-  return {
-    account_id: String(acc?.account_id ?? ''),
-    alias: acc?.alias || '',
-    initial,
-    last,
-    history,
-    profit,
-    todayPnL
-  };
-};
-
-// ===================== Fetch & Filter ===================== //
+// ============ جلب بيانات الحسابات ============
 async function fetchAccounts() {
   try {
-    const res = await fetch('/accounts', { cache: 'no-store' });
-    accounts = await res.json() || {};
-    lastFetchOk = true;
+    const response = await fetch('/accounts');
+    accounts = await response.json();
+    renderDashboard(getFilteredData());
   } catch (e) {
-    console.error('Fetch /accounts failed:', e);
-    lastFetchOk = false;
+    console.error('Fetch error:', e);
   }
-  renderDashboard(getFilteredData());
 }
 
+// ============ تصفية وفرز ============
 function getFilteredData() {
-  const val = (searchInput?.value || '').toLowerCase().trim();
+  const val = searchInput.value.toLowerCase();
   let data = Object.values(accounts)
-    .map(shapeAccount)
-    .filter(acc =>
-      (acc.alias && acc.alias.toLowerCase().includes(val)) ||
-      (acc.account_id && acc.account_id.toLowerCase().includes(val))
-    );
+    .filter(acc => acc.alias?.toLowerCase().includes(val) || acc.account_id.includes(val))
+    .map(acc => ({
+      ...acc,
+      last: acc.history?.[acc.history.length - 1] || {},
+    }));
 
-  const sortBy = sortFilter?.value || 'default';
-  if (sortBy === 'profit')      data.sort((a, b) => b.profit - a.profit);
-  else if (sortBy === 'balance') data.sort((a, b) => b.last.balance - a.last.balance);
-  else if (sortBy === 'recent')  data.sort((a, b) => b.last.timestamp - a.last.timestamp);
+  const sortBy = sortFilter.value;
+  if (sortBy === 'profit') {
+    data.sort((a, b) => {
+      const profitA = a.last.balance - (a.initial_balance ?? 1000);
+      const profitB = b.last.balance - (b.initial_balance ?? 1000);
+      return profitB - profitA;
+    });
+  } else if (sortBy === 'balance') {
+    data.sort((a, b) => b.last.balance - a.last.balance);
+  }
   return data;
 }
 
-// ===================== Totals Bar ===================== //
-function totalsBarHTML(list) {
-  const sum = (f) => list.reduce((s, a) => s + f(a), 0);
-  const totalBal = sum(a => a.last.balance);
-  const totalInit = sum(a => a.initial);
-  const totalPnL = totalBal - totalInit;
-  const totalToday = sum(a => a.todayPnL);
-
-  const pnlClass = totalPnL >= 0 ? 'pnl-pos' : 'pnl-neg';
-  const todayClass = totalToday >= 0 ? 'pnl-pos' : 'pnl-neg';
-
-  return `
-    <div class="chip">Total Balance: <b>$${toMoney(totalBal)}</b></div>
-    <div class="chip">Initial: <b>$${toMoney(totalInit)}</b></div>
-    <div class="chip">PNL: <b class="${pnlClass}">$${toMoney(totalPnL)}</b></div>
-    <div class="chip">Today: <b class="${todayClass}">$${toMoney(totalToday)}</b></div>
-  `;
-}
-
-// ===================== Render Dashboard ===================== //
+// ============ توليد العرض ============
 function renderDashboard(data) {
-  totalsBar.innerHTML = data.length ? totalsBarHTML(data) : '';
-
-  dashboard.innerHTML = '';
-  if (!data.length) {
-    const msg = document.createElement('div');
-    msg.className = 'w-full text-center text-gray-500 py-10';
-    msg.innerHTML = lastFetchOk
-      ? 'لا توجد بيانات بعد… أرسل أول تحديث من الإكسبرت.'
-      : '⚠️ تعذّر جلب البيانات من الخادم.';
-    dashboard.appendChild(msg);
-    return;
-  }
+  dashboard.innerHTML = totalsBarHTML(data);
 
   data.forEach(acc => {
-    const profit = acc.profit;
+    const initial = acc.initial_balance ?? 100;
+    const profit = acc.last.balance - initial;
+
     const card = document.createElement('article');
     card.className = `card ${profit > 0 ? 'pos' : profit < 0 ? 'neg' : 'zero'}`;
-
-    // افتح التفاصيل عند الضغط على أي مكان في الكرت (مع استثناء أزرار صغيرة)
-card.addEventListener('click', (e) => {
-  const tag = (e.target.tagName || '').toLowerCase();
-  if (tag === 'button' || e.target.classList.contains('edit')) return; // لا تفتح عند Edit goal
-  openDetail(acc);
-});
-
-
-    // ===== العنوان =====
-    const title = document.createElement('div');
-    title.className = 'title';
-    title.innerHTML = `
-      <span>${acc.alias || acc.account_id}</span>
-      ${acc.alias && acc.account_id ? `<small>(#${acc.account_id})</small>` : ''}
-      <span class="badge">${staleBadge(acc.last.timestamp)}</span>
-    `;
-    card.appendChild(title);
-
-    // ===== المعلومات =====
-    const info = document.createElement('div');
-    info.className = 'info';
-    info.innerHTML = `
-      <div>Balance: <b>$${toMoney(acc.last.balance)}</b></div>
-      <div class="muted">Initial: $${toMoney(acc.initial)}</div>
-      <div>Profit: <b class="${profit >= 0 ? 'pos' : 'neg'}">$${toMoney(profit)}</b></div>
-      <div>Today: <b class="${acc.todayPnL >= 0 ? 'pos' : 'neg'}">$${toMoney(acc.todayPnL)}</b></div>
-    `;
-    card.appendChild(info);
-
-    // ===== التاريخ =====
-    const detailsHTML = acc.history.slice(-3).map((h, i, arr) => {
-      const prev = i === 0 ? h.balance : arr[i - 1].balance;
-      const diff = h.balance - prev;
-      return `<div>• ${fmtDate(h.timestamp)} | $${toMoney(h.balance)} | Δ: ${toMoney(diff)}</div>`;
-    }).join('');
-    const historyBox = document.createElement('div');
-    historyBox.className = 'history';
-    historyBox.innerHTML = detailsHTML || '<div class="muted">No history</div>';
-    card.appendChild(historyBox);
-
-    // ===== Sparkline =====
-    const spark = document.createElement('div');
-    spark.innerHTML = sparkline(acc.history);
-    card.appendChild(spark);
-
-    // ===== الهدف =====
-    const goal = getGoal(acc.account_id);
-    const percent = Math.max(0, Math.min(100, (acc.profit / goal) * 100));
-    const goalDiv = document.createElement('div');
-    goalDiv.className = 'goal';
-    goalDiv.innerHTML = `
-      <div class="flex-row">
-        <span class="muted">Goal $${toMoney(goal)}</span>
-        <span class="muted" style="float:inline-end">${percent.toFixed(0)}%</span>
+    card.innerHTML = `
+      <div class="title">${acc.alias || acc.account_id} 
+        <small>#${acc.account_id}</small>
       </div>
-      <div class="progress"><i style="width:${percent}%"></i></div>
+      <div class="info">
+        <span>Initial: <b>$${toMoney(initial)}</b></span>
+        <span>Balance: <b>$${toMoney(acc.last.balance)}</b></span>
+      </div>
+      <div class="info">
+        <span>Today: <b class="${acc.today >= 0 ? 'pos' : 'neg'}">$${toMoney(acc.today ?? 0)}</b></span>
+        <span>Profit: <b class="${profit >= 0 ? 'pos' : 'neg'}">$${toMoney(profit)}</b></span>
+      </div>
+      <div class="history">
+        ${acc.history
+          .slice(-3)
+          .map(h => {
+            const d = new Date(h.timestamp);
+            return `• ${d.toLocaleString()} | $${toMoney(h.balance)}`;
+          })
+          .join('<br>')}
+      </div>
+      <div class="goal">
+        <div class="progress"><i style="width:0%"></i></div>
+        <div class="edit" onclick="editGoal('${acc.account_id}')">Edit goal</div>
+      </div>
+      <div class="muted text-xs">Last updated: ${new Date(acc.last.timestamp).toLocaleString()}</div>
     `;
-    card.appendChild(goalDiv);
 
-    // ===== زر تعديل الهدف =====
-    const edit = document.createElement('div');
-    edit.className = 'edit';
-    edit.textContent = 'Edit goal';
-    edit.onclick = () => {
-      const v = prompt('Set goal $', getGoal(acc.account_id));
-      if (v != null) { setGoal(acc.account_id, Number(v) || 0); renderDashboard(getFilteredData()); }
-    };
-    card.appendChild(edit);
-
-    // ===== آخر تحديث =====
-    const lastLine = document.createElement('div');
-    lastLine.className = 'muted';
-    lastLine.style.marginTop = '8px';
-    lastLine.textContent = `Last updated: ${fmtDate(acc.last.timestamp)}`;
-    card.appendChild(lastLine);
+    // عند الضغط على الكرت فتح التفاصيل
+    card.addEventListener('click', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'button' || e.target.classList.contains('edit')) return;
+      openDetail(acc);
+    });
 
     dashboard.appendChild(card);
   });
 }
 
-// ===== Weekly detail (last 7 days) =====
-const dp  = document.getElementById('detailPanel');
-const db  = document.getElementById('detailBackdrop');
-const dttl= document.getElementById('detailTitle');
-const dsub= document.getElementById('detailSub');
-const drng= document.getElementById('detailRange');
+// ============ شريط الإجماليات ============
+function totalsBarHTML(data) {
+  const sum = f => data.reduce((s, a) => s + f(a), 0);
+  const totalBal = sum(a => a.last.balance || 0);
+  const totalInit = sum(a => a.initial_balance || 0);
+  const totalPnL = totalBal - totalInit;
+  const todaySum = sum(a => a.today || 0);
+  return `
+    <div class="totals">
+      <div class="chip">Total Balance: <b>$${toMoney(totalBal)}</b></div>
+      <div class="chip">Initial: <b>$${toMoney(totalInit)}</b></div>
+      <div class="chip">PNL: <b class="${totalPnL >= 0 ? 'pnl-pos' : 'pnl-neg'}">$${toMoney(totalPnL)}</b></div>
+      <div class="chip">Today: <b>$${toMoney(todaySum)}</b></div>
+    </div>`;
+}
+
+// ============ أدوات مساعدة ============
+function toMoney(n) {
+  return (Number(n) || 0).toFixed(2);
+}
+
+// ============ نظام الهدف ============
+function editGoal(id) {
+  const goals = JSON.parse(localStorage.getItem('goals') || '{}');
+  const g = prompt('Set goal $', goals[id] || 50);
+  if (g != null) {
+    goals[id] = Number(g);
+    localStorage.setItem('goals', JSON.stringify(goals));
+  }
+}
+
+// ============ لوحة التفاصيل الأسبوعية ============
+const dp = document.getElementById('detailPanel');
+const db = document.getElementById('detailBackdrop');
+const dttl = document.getElementById('detailTitle');
+const dsub = document.getElementById('detailSub');
+const drng = document.getElementById('detailRange');
 const dst = document.getElementById('detailStats');
 const dch = document.getElementById('weeklyChart');
+const ddChart = document.getElementById('ddChart');
 const dtb = document.getElementById('detailTable').querySelector('tbody');
+const seg = document.getElementById('periodSeg');
 document.getElementById('detailClose').onclick = closeDetail;
 db.onclick = closeDetail;
 
-function openDetail(acc){
-  // شكل العنوان
-  dttl.textContent = acc.alias || acc.account_id;
-  dsub.textContent = acc.alias && acc.account_id ? `#${acc.account_id}` : '';
+seg.addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn');
+  if (!b) return;
+  seg.querySelectorAll('.seg-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  currentDays = Number(b.dataset.days) || 7;
+  if (currentDetailAcc) openDetail(currentDetailAcc, true);
+});
 
-  // نطاق الأسبوع
+function openDetail(acc, rerenderOnly = false) {
+  currentDetailAcc = acc;
+
+  if (!rerenderOnly) {
+    dttl.textContent = acc.alias || acc.account_id;
+    dsub.textContent = acc.alias && acc.account_id ? `#${acc.account_id}` : '';
+    db.classList.remove('hidden');
+    dp.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      db.classList.add('show');
+      dp.classList.add('open');
+    });
+  }
+
   const end = Date.now();
-  const start = end - 7*24*60*60*1000;
+  const start = end - currentDays * 24 * 60 * 60 * 1000;
   drng.textContent = `${new Date(start).toLocaleString()} — ${new Date(end).toLocaleString()}`;
 
-  // فلترة آخر 7 أيام
-  const weekHist = acc.history.filter(h => h.timestamp >= start && h.timestamp <= end);
-  const points = weekHist.length ? weekHist : [acc.history[acc.history.length-1] || acc.last];
+  const points = acc.history.filter(h => h.timestamp >= start && h.timestamp <= end);
+  const data = points.length ? points : [acc.history[acc.history.length - 1] || acc.last];
 
-  // إحصاءات سريعة
-  const first = points[0]?.balance ?? acc.initial;
-  const last  = points[points.length-1]?.balance ?? acc.last.balance;
+  const first = data[0]?.balance ?? acc.initial;
+  const last = data[data.length - 1]?.balance ?? acc.last.balance;
   const delta = last - first;
-  const max   = Math.max(...points.map(p=>p.balance));
-  const min   = Math.min(...points.map(p=>p.balance));
-
+  const max = Math.max(...data.map(p => p.balance));
+  const min = Math.min(...data.map(p => p.balance));
   dst.innerHTML = `
     <span class="chip">First: <b>$${toMoney(first)}</b></span>
     <span class="chip">Last: <b>$${toMoney(last)}</b></span>
-    <span class="chip">Δ Week: <b class="${delta>=0?'pos':'neg'}">$${toMoney(delta)}</b></span>
+    <span class="chip">Δ ${currentDays}d: <b class="${delta >= 0 ? 'pos' : 'neg'}">$${toMoney(delta)}</b></span>
     <span class="chip">Max: <b>$${toMoney(max)}</b></span>
     <span class="chip">Min: <b>$${toMoney(min)}</b></span>
   `;
 
-  // رسم الخط مع محاور وأيام أسبوع
-  dch.innerHTML = chartWeeklySVG(points);
+  dch.innerHTML = chartWeeklySVG(data);
+  ddChart.innerHTML = drawdownSVG(data);
 
-  // جدول يومي (group by day)
-  const byDay = groupByDay(points);
-  dtb.innerHTML = Object.keys(byDay).sort().map(day => {
-    const arr= byDay[day];
-    const f= arr[0]?.balance ?? 0;
-    const l= arr[arr.length-1]?.balance ?? f;
-    const d= l - f;
-    return `<tr>
-      <td>${day}</td>
-      <td>$${toMoney(f)}</td>
-      <td>$${toMoney(l)}</td>
-      <td class="${d>=0?'pos':'neg'}">$${toMoney(d)}</td>
-    </tr>`;
-  }).join('');
-
-  // فتح اللوحة
-  db.classList.remove('hidden'); dp.classList.remove('hidden');
-  requestAnimationFrame(()=>{ db.classList.add('show'); dp.classList.add('open'); });
+  const byDay = groupByDay(data);
+  dtb.innerHTML = Object.keys(byDay)
+    .sort()
+    .map(day => {
+      const arr = byDay[day];
+      const f = arr[0]?.balance ?? 0;
+      const l = arr[arr.length - 1]?.balance ?? f;
+      const d = l - f;
+      return `<tr>
+        <td>${day}</td>
+        <td>$${toMoney(l)}</td>
+        <td>$${toMoney(f)}</td>
+        <td class="${d >= 0 ? 'pos' : 'neg'}">$${toMoney(d)}</td>
+      </tr>`;
+    })
+    .join('');
 }
 
-function closeDetail(){
-  db.classList.remove('show'); dp.classList.remove('open');
-  setTimeout(()=>{ db.classList.add('hidden'); dp.classList.add('hidden'); }, 200);
+function closeDetail() {
+  db.classList.remove('show');
+  dp.classList.remove('open');
+  setTimeout(() => {
+    db.classList.add('hidden');
+    dp.classList.add('hidden');
+  }, 200);
 }
 
-function groupByDay(points){
-  const o={};
-  points.forEach(p=>{
-    const d=new Date(p.timestamp);
-    const k= `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-    (o[k]=o[k]||[]).push(p);
+function groupByDay(points) {
+  const o = {};
+  points.forEach(p => {
+    const d = new Date(p.timestamp);
+    const k = `${d.getFullYear()}-${(d.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+    (o[k] = o[k] || []).push(p);
   });
   return o;
 }
 
-// رسم أسبوعي: شبكة + محاور + خط + نقاط + Tooltip
-function chartWeeklySVG(points){
-  const W = dch.clientWidth || 760, H = 260, P = 36;
-  const xs = points.map(p=>({ x:p.timestamp, y:p.balance }));
-  const minX = xs[0]?.x ?? Date.now()-7*864e5, maxX = xs[xs.length-1]?.x ?? Date.now();
-  const minY = Math.min(...xs.map(p=>p.y), 0), maxY = Math.max(...xs.map(p=>p.y), 1);
-  const xmap = t => P + ( (t - minX) / (maxX - minX || 1) ) * (W - 2*P);
-  const ymap = v => H - P - ( (v - minY) / (maxY - minY || 1) ) * (H - 2*P);
+// ===== الشارت الأسبوعي =====
+function chartWeeklySVG(points) {
+  const W = dch.clientWidth || 760,
+    H = 260,
+    P = 36;
+  const xs = points.map(p => ({
+    x: p.timestamp,
+    bal: p.balance,
+    eq: isFinite(p.equity) ? p.equity : NaN,
+  }));
+  const minX = xs[0]?.x ?? Date.now() - currentDays * 864e5,
+    maxX = xs[xs.length - 1]?.x ?? Date.now();
+  const vals = xs.flatMap(p => [p.bal, isFinite(p.eq) ? p.eq : undefined]).filter(v => isFinite(v));
+  const minY = Math.min(...vals, 0),
+    maxY = Math.max(...vals, 1);
+  const xmap = t => P + ((t - minX) / (maxX - minX || 1)) * (W - 2 * P);
+  const ymap = v => H - P - ((v - minY) / (maxY - minY || 1)) * (H - 2 * P);
 
-  // محاور اليوم (7 فواصل)
-  const days = Array.from({length:8}, (_,i)=> minX + i*( (maxX-minX)/7 || 1));
-  const gridX = days.map(t=> `<line x1="${xmap(t).toFixed(1)}" y1="${P}" x2="${xmap(t).toFixed(1)}" y2="${H-P}" stroke="#e5e7eb"/>`).join('');
-  const labelsX = days.map(t=> `<text x="${xmap(t).toFixed(1)}" y="${H-10}" text-anchor="middle" fill="#64748b" font-size="11">${new Date(t).toLocaleDateString()}</text>`).join('');
+  const days = Array.from({ length: 8 }, (_, i) => minX + i * ((maxX - minX) / 7 || 1));
+  const gridX = days
+    .map(
+      t =>
+        `<line x1="${xmap(t).toFixed(1)}" y1="${P}" x2="${xmap(t).toFixed(
+          1
+        )}" y2="${H - P}" stroke="#e5e7eb"/>`
+    )
+    .join('');
+  const labelsX = days
+    .map(
+      t =>
+        `<text x="${xmap(t).toFixed(1)}" y="${H - 10}" text-anchor="middle" fill="#64748b" font-size="11">${new Date(
+          t
+        ).toLocaleDateString()}</text>`
+    )
+    .join('');
 
-  // خطوط أفقية (4)
-  const rows = 4;
-  const gridY = Array.from({length:rows+1},(_,i)=> {
-    const y = P + i*((H-2*P)/rows);
-    return `<line x1="${P}" y1="${y.toFixed(1)}" x2="${(W-P).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#eef2f7"/>`;
-  }).join('');
+  const pathBal = xs
+    .map((p, i) => `${i ? 'L' : 'M'}${xmap(p.x).toFixed(1)},${ymap(p.bal).toFixed(1)}`)
+    .join(' ');
+  const pathEq = xs
+    .filter(p => isFinite(p.eq))
+    .map((p, i) => `${i ? 'L' : 'M'}${xmap(p.x).toFixed(1)},${ymap(p.eq).toFixed(1)}`)
+    .join(' ');
 
-  // خط البيانات
-  const path = xs.map((p,i)=> `${i?'L':'M'}${xmap(p.x).toFixed(1)},${ymap(p.y).toFixed(1)}`).join(' ');
-  const dots = xs.map(p=> `<circle cx="${xmap(p.x).toFixed(1)}" cy="${ymap(p.y).toFixed(1)}" r="3" fill="#16a34a"/>`).join('');
-
-  // Tooltip بسيط
-  const tipId = 'tip-'+Math.random().toString(36).slice(2);
-  const handlers = xs.map(p=>{
-    const x = xmap(p.x), y = ymap(p.y);
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="10" fill="transparent"
-      onmousemove="document.getElementById('${tipId}').style.display='block';
-                   document.getElementById('${tipId}').style.left='${x}px';
-                   document.getElementById('${tipId}').style.top='${y}px';
-                   document.getElementById('${tipId}').innerHTML='${new Date(p.x).toLocaleString()}<br>$${toMoney(p.y)}';"
-      onmouseout="document.getElementById('${tipId}').style.display='none';"/>`;
-  }).join('');
+  const tipId = 'tip-' + Math.random().toString(36).slice(2);
+  const handlers = xs
+    .map(p => {
+      const x = xmap(p.x),
+        y = ymap(p.bal);
+      const eqTxt = isFinite(p.eq) ? `<br>Equity: $${toMoney(p.eq)}` : '';
+      return `<rect x="${(x - 8).toFixed(1)}" y="${P}" width="16" height="${
+        H - 2 * P
+      }" fill="transparent"
+      onmousemove="const T=document.getElementById('${tipId}');T.style.display='block';T.style.left='${x}px';T.style.top='${y}px';
+                   T.innerHTML='${new Date(p.x).toLocaleString()}<br>Balance: $${toMoney(
+        p.bal
+      )}${eqTxt}';"
+      onmouseout="document.getElementById('${tipId}').style.display='none';"></rect>`;
+    })
+    .join('');
 
   return `
-    <div style="position:relative; width:100%; height:${H}px">
+    <div style="position:relative;width:100%;height:${H}px">
       <svg width="${W}" height="${H}">
         <rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>
-        ${gridX} ${gridY}
-        <path d="${path}" fill="none" stroke="#16a34a" stroke-width="2"/>
-        ${dots}
-        ${handlers}
+        ${gridX}
+        ${pathEq ? `<path d="${pathEq}" fill="none" stroke="var(--eq)" stroke-width="2"/>` : ''}
+        <path d="${pathBal}" fill="none" stroke="var(--bal)" stroke-width="2"/>
         ${labelsX}
-        <!-- y-axis min/max labels -->
-        <text x="${P-6}" y="${H-P+4}" text-anchor="end" fill="#64748b" font-size="11">$${toMoney(minY)}</text>
-        <text x="${P-6}" y="${P+4}" text-anchor="end" fill="#64748b" font-size="11">$${toMoney(maxY)}</text>
+        ${handlers}
+        <text x="${P - 6}" y="${H - P + 4}" text-anchor="end" class="dd-axis">$${toMoney(minY)}</text>
+        <text x="${P - 6}" y="${P + 4}" text-anchor="end" class="dd-axis">$${toMoney(maxY)}</text>
       </svg>
-      <div id="${tipId}" class="tip" style="display:none; position:absolute;"></div>
+      <div id="${tipId}" class="tip" style="display:none;position:absolute;"></div>
     </div>
   `;
 }
 
+// ===== رسم Drawdown =====
+function drawdownSVG(points) {
+  if (!points.length) return '';
+  const by = groupByDay(points);
+  const keys = Object.keys(by).sort();
+  const days = keys.map(k => ({ day: k, arr: by[k] }));
+  const dd = days.map(d => {
+    const bal = d.arr.map(p => p.balance);
+    const max = Math.max(...bal);
+    const min = Math.min(...bal);
+    const ddPct = max > 0 ? ((min - max) / max) * 100 : 0;
+    return { day: d.day, dd: ddPct };
+  });
 
-// ===================== CSV Export ===================== //
+  const W = ddChart.clientWidth || 760,
+    H = 120,
+    P = 36;
+  const minY = Math.min(0, ...dd.map(x => x.dd));
+  const xmap = i => P + (i / Math.max(1, dd.length - 1)) * (W - 2 * P);
+  const ymap = v => H - P - ((v - minY) / (0 - minY || 1)) * (H - 2 * P);
+
+  const bars = dd
+    .map((d, i) => {
+      const x = xmap(i) - 10,
+        y = ymap(d.dd);
+      const h = ymap(0) - y;
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="20" height="${Math.max(
+        0,
+        h
+      ).toFixed(1)}" class="dd-bar">
+              <title>${d.day} — ${toMoney(d.dd)}%</title>
+            </rect>`;
+    })
+    .join('');
+
+  const labelsX = dd
+    .map(
+      (d, i) =>
+        `<text x="${xmap(i).toFixed(1)}" y="${H - 10}" text-anchor="middle" class="dd-axis">${d.day.slice(5)}</text>`
+    )
+    .join('');
+
+  return `
+    <svg width="${W}" height="${H}">
+      <rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>
+      <line x1="${P}" y1="${ymap(0)}" x2="${W - P}" y2="${ymap(0)}" stroke="#e5e7eb"/>
+      ${bars}
+      ${labelsX}
+      <text x="${P - 6}" y="${ymap(minY) - 4}" text-anchor="end" class="dd-axis">${toMoney(minY)}%</text>
+    </svg>
+  `;
+}
+
+// ============ البحث والتحديث ============
+searchInput.addEventListener('input', () => renderDashboard(getFilteredData()));
+sortFilter.addEventListener('change', () => renderDashboard(getFilteredData()));
+downloadBtn.addEventListener('click', downloadCSV);
+
+fetchAccounts();
+setInterval(fetchAccounts, 5000);
+
+// ============ CSV ============
 function downloadCSV() {
-  const rows = [["Alias", "Account ID", "Initial", "Balance", "Profit", "Today", "Last Updated"]];
-  Object.values(accounts).map(shapeAccount).forEach(acc => {
+  const rows = [['Alias', 'Account ID', 'Balance', 'Profit', 'Last Updated']];
+  Object.values(accounts).forEach(acc => {
+    const last = acc.history[acc.history.length - 1];
+    const initial = acc.initial_balance ?? 100;
+    const profit = last.balance - initial;
     rows.push([
-      acc.alias || "",
+      acc.alias || '',
       acc.account_id,
-      toMoney(acc.initial),
-      toMoney(acc.last.balance),
-      toMoney(acc.profit),
-      toMoney(acc.todayPnL),
-      fmtDate(acc.last.timestamp)
+      last.balance.toFixed(2),
+      profit.toFixed(2),
+      new Date(last.timestamp).toLocaleString(),
     ]);
   });
 
-  const csv = rows.map(r => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = "accounts_report.csv";
+  a.download = 'accounts_report.csv';
   a.click();
-  URL.revokeObjectURL(url);
 }
-
-// ===================== Events ===================== //
-searchInput?.addEventListener('input',  () => renderDashboard(getFilteredData()));
-sortFilter?.addEventListener('change', () => renderDashboard(getFilteredData()));
-downloadBtn?.addEventListener('click', downloadCSV);
-
-// ===================== Init ===================== //
-fetchAccounts();
-setInterval(fetchAccounts, 5000);
