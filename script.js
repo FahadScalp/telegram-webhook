@@ -18,7 +18,22 @@ let fetchTimer = null;
 /* ===================== Utils ===================== */
 const toMoney = n => (Number(n) || 0).toFixed(2);
 function fixTsMs(t){ const n=Number(t); return n<1e12 ? n*1000 : n; }
-function fmtDate(ts){ try{ return new Date(fixTsMs(ts)).toLocaleString(); }catch(_){ return '-'; } }
+function fmtDate(ts){
+  try{
+    const d = new Date(fixTsMs(ts));
+    const date = d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' }); // 14/11/2025
+    const time = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    return `${date}, ${time}`;
+  }catch(_){
+    return '-';
+  }
+}
+
+function fmtDateOnly(dOrTs){
+  const d = (dOrTs instanceof Date) ? dOrTs : new Date(fixTsMs(dOrTs));
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
 
 // أهداف الحسابات (محفوظة محلياً)
 const GOALS_KEY = 'goals_by_account';
@@ -246,13 +261,11 @@ function ensureDrawer(){
 
         <div class="chart-wrap">
           <div class="chart-head">
-            <div>Balance (last days)</div>
-            <div class="seg">
-              <button class="seg-btn" data-range="7">7d</button>
-              <button class="seg-btn" data-range="14">14d</button>
-              <button class="seg-btn active" data-range="30">30d</button>
-            </div>
-          </div>
+  <div>Balance (last days)</div>
+  <select id="dwRange" class="range-select">
+    <!-- نملأ الخيارات من JS (1–30 يوم) -->
+  </select>
+</div>
           <div id="chartArea" class="chart"></div>
           <div class="legend">
             <span>Balance</span><span class="sep"></span>
@@ -374,6 +387,39 @@ function drawChart(acc, days){
     return 'M'+pairs.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' L ');
   }
 }
+
+function getDailyPnL(acc, days){
+  const end   = Date.now();
+  const start = end - days*24*3600*1000;
+
+  const history = acc.history || [];
+  const rows = history.filter(h => h.timestamp >= start && h.timestamp <= end);
+
+  const byDate = {};
+  rows.forEach(h => {
+    const d = new Date(h.timestamp);
+    const key = d.toISOString().slice(0, 10); // yyyy-mm-dd
+    if (!byDate[key]){
+      byDate[key] = { first: h.balance, last: h.balance, ts: h.timestamp };
+    } else {
+      byDate[key].last = h.balance;
+      byDate[key].ts   = h.timestamp;
+    }
+  });
+
+  return Object.keys(byDate).sort().map(key => {
+    const rec   = byDate[key];
+    const delta = (Number(rec.last)||0) - (Number(rec.first)||0);
+    return {
+      key,
+      dateObj: new Date(rec.ts),
+      first: Number(rec.first)||0,
+      last:  Number(rec.last)||0,
+      delta
+    };
+  });
+}
+
 
 function fillTable(acc, days){
   const end   = Date.now();
