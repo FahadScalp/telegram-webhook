@@ -4,101 +4,93 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>مشتركين بوت التداول — FahadScalp</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+
+  <!-- Header -->
   <header class="app-header">
     <div class="wrap">
       <h1>مشتركين بوت التداول</h1>
-      <p class="sub">FahadScalp</p>
+      <div class="sub">FahadScalp</div>
     </div>
   </header>
 
+  <!-- Toolbar -->
   <main class="wrap">
-    <!-- شريط الأدوات -->
     <div class="toolbar">
-      <div class="field">
-        <input id="searchInput" type="text" placeholder="ابحث بالمعرّف أو الاسم…" />
+      <button id="downloadBtn" class="btn">تحميل CSV</button>
+      <div class="field" style="flex:1">
+        <input id="searchInput" type="text" placeholder="ابحث بالمعرّف أو الاسم..." />
       </div>
-
-      <!-- Weekly Detail Panel (drawer) -->
-<div id="detailBackdrop" class="backdrop hidden"></div>
-<aside id="detailPanel" class="drawer hidden" aria-hidden="true">
-  <div class="drawer-header">
-    <div>
-      <div id="detailTitle" class="drawer-title">—</div>
-      <div id="detailSub" class="drawer-sub">—</div>
-    </div>
-    <button id="detailClose" class="btn-close big" aria-label="Close">×</button>
-  </div>
-
-  <div class="drawer-body">
-    <div id="detailStats" class="stats-row"></div>
-
-    <div class="chart-wrap">
-  <div class="chart-head">
-    <span>Balance / Equity</span>
-    <div class="seg" id="periodSeg">
-      <button class="seg-btn active" data-days="7">7d</button>
-      <button class="seg-btn" data-days="14">14d</button>
-      <button class="seg-btn" data-days="30">30d</button>
-    </div>
-  </div>
-
-  <div id="weeklyChart" class="chart"></div>
-
-  <div id="chartLegend" class="legend">
-    <span class="dot" style="background:#16a34a"></span><span>Balance</span>
-    <span class="dot" style="background:#2563eb;margin-inline-start:10px"></span><span>Equity</span>
-    <span class="sep"></span>
-    <span class="muted" id="detailRange">—</span>
-  </div>
-
-  <div id="ddChart" class="chart" style="height:120px;margin-top:10px"></div>
-</div>
-
-    <div class="table-wrap">
-      <table class="mini-table" id="detailTable">
-        <thead>
-          <tr>
-            <th>Date</th><th>First</th><th>Last</th><th>Δ</th>
-          </tr>
-        </thead>
-        <tbody><!-- rows injected --></tbody>
-      </table>
-    </div>
-  </div>
-</aside>
-
-
-      <div class="spacer"></div>
-
-      <div class="field">
-        <select id="sortFilter" aria-label="Sort">
-          <option value="default">Sort by Default</option>
-          <option value="profit">Sort by Profit</option>
-          <option value="balance">Sort by Balance</option>
-          <option value="recent">Sort by Recent</option>
-        </select>
-      </div>
-
-      <button id="downloadBtn" class="btn">تنزيل CSV</button>
+      <select id="sortFilter">
+        <option value="default">Sort by Default</option>
+        <option value="balance">Sort by Balance</option>
+        <option value="profit">Sort by Profit</option>
+        <option value="recent">Sort by Recent</option>
+      </select>
     </div>
 
-    <!-- إجماليات -->
-    <section id="totalsBar" class="totals"></section>
-
-    <!-- الشبكة -->
+    <!-- Totals + Cards -->
     <section id="dashboard" class="grid"></section>
   </main>
 
-  <footer class="app-footer">
-    <div class="wrap">
-      <span id="statusDot" class="dot dot-ok"></span>
-      <span id="statusText">متصل</span>
+  <!-- Weekly Detail Drawer -->
+  <div id="detailBackdrop" class="backdrop hidden"></div>
+  <aside id="detailPanel" class="drawer hidden" aria-hidden="true">
+    <div class="drawer-header">
+      <div>
+        <div id="detailTitle" class="drawer-title">—</div>
+        <div id="detailSub" class="drawer-sub">—</div>
+      </div>
+      <button id="detailClose" class="btn-close big" aria-label="Close">×</button>
     </div>
+
+    <div class="drawer-body">
+      <div id="detailStats" class="stats-row"></div>
+
+      <div class="chart-wrap">
+        <div class="chart-head">
+          <span>Balance / Equity</span>
+          <div class="seg" id="periodSeg">
+            <button class="seg-btn active" data-days="7">7d</button>
+            <button class="seg-btn" data-days="14">14d</button>
+            <button class="seg-btn" data-days="30">30d</button>
+          </div>
+        </div>
+
+        <div id="weeklyChart" class="chart"></div>
+
+        <div id="chartLegend" class="legend">
+          <span class="dot" style="background:#16a34a"></span><span>Balance</span>
+          <span class="dot" style="background:#2563eb;margin-inline-start:10px"></span><span>Equity</span>
+          <span class="sep"></span>
+          <span class="muted" id="detailRange">—</span>
+        </div>
+
+        <div id="ddChart" class="chart" style="height:120px;margin-top:10px"></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="mini-table" id="detailTable">
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>Last</th>
+              <th>First</th>
+              <th>Δ</th>
+            </tr>
+          </thead>
+          <tbody><!-- rows injected --></tbody>
+        </table>
+      </div>
+    </div>
+  </aside>
+
+  <footer class="app-footer">
+    <div class="wrap muted">© FahadScalp — Dashboard</div>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
