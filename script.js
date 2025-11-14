@@ -280,7 +280,6 @@ function openDetail(acc){
   document.getElementById('dwTitle').textContent = acc.alias || acc.account_id || '-';
   document.getElementById('dwSub').textContent   = `#${acc.account_id || '-'} — Last: ${fmtDate(acc.last.timestamp)}`;
 
-  // أزرار المدى
   const segBtns = drawer.querySelectorAll('.seg-btn');
   segBtns.forEach(btn=>{
     btn.onclick = ()=>{
@@ -292,16 +291,14 @@ function openDetail(acc){
     };
   });
 
-  // تعبئة أولية
   drawChart(acc, 30);
   fillTable(acc, 30);
 
-  // Stats chips
-  const init   = Number(acc.initial_balance)||0;
-  const bal    = Number(acc.last.balance)||0;
-  const eq     = (acc.last.equity==null ? undefined : Number(acc.last.equity));
-  const pnl    = bal - init;
-  const stats  = document.getElementById('dwStats');
+  const init = Number(acc.initial_balance)||0;
+  const bal  = Number(acc.last.balance)||0;
+  const eq   = (acc.last.equity==null ? undefined : Number(acc.last.equity));
+  const pnl  = bal - init;
+  const stats= document.getElementById('dwStats');
   stats.innerHTML = `
     <div class="chip">Initial: <b>$${toMoney(init)}</b></div>
     <div class="chip">Balance: <b>$${toMoney(bal)}</b></div>
@@ -310,13 +307,23 @@ function openDetail(acc){
     <div class="chip">PNL: <b class="${pnl>=0?'pos':'neg'}">$${toMoney(pnl)}</b></div>
   `;
 
-  // فتح
-  backdrop.classList.remove('hidden'); drawer.classList.add('open'); setTimeout(()=>backdrop.classList.add('show'), 10);
+  backdrop.classList.remove('hidden');
+  void drawer.offsetWidth;
+  drawer.classList.add('open');
+  setTimeout(()=>backdrop.classList.add('show'), 10);
 }
+
 function closeDetail(){
-  backdrop.classList.remove('show'); drawer.classList.remove('open');
-  setTimeout(()=>backdrop.classList.add('hidden'), 200);
+  drawer.classList.remove('open');
+  backdrop.classList.remove('show');
+
+  const onEnd = () => {
+    backdrop.classList.add('hidden');
+    drawer.removeEventListener('transitionend', onEnd);
+  };
+  drawer.addEventListener('transitionend', onEnd);
 }
+
 
 function drawChart(acc, days){
   const area = document.getElementById('chartArea');
