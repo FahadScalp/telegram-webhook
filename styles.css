@@ -115,21 +115,24 @@ h1{margin:0;font-weight:800;letter-spacing:.2px;color:#1e3a8a}
 .app-footer{padding:18px 0}
 .app-footer .wrap{display:flex;gap:8px;align-items:center}
 
-/* Drawer (weekly detail) */
+/* Drawer */
 .hidden{display:none !important}
 .backdrop{
   position:fixed; inset:0; background:rgba(15,18,34,.35);
   backdrop-filter: blur(2px); z-index:80; opacity:0; transition:.2s opacity;
 }
 .drawer{
-  position:fixed; top:0; bottom:0; inset-inline-end:0; width:min(860px,100%);
-  background:var(--card); border-inline-start:1px solid var(--border);
+  position:fixed; top:0; bottom:0; right:0; /* ← ثبّتها يمين دائمًا */
+  width:min(860px,100%); background:var(--card);
+  border-left:1px solid var(--border);
   box-shadow:-12px 0 24px rgba(0,0,0,.1); z-index:90;
-  transform:translateX(100%); transition:.25s transform;
+  transform:translateX(100%); /* ← خارج الشاشة افتراضيًا */
+  transition:transform .25s ease;
   display:flex; flex-direction:column;
 }
-.drawer.open{ transform:translateX(0) }
+.drawer.open{ transform:translateX(0) } /* ← عند الفتح */
 .backdrop.show{ opacity:1 }
+
 
 .drawer-header{
   display:flex; align-items:center; justify-content:space-between;
