@@ -91,6 +91,10 @@ function renderDashboard(data){
     const initial = acc.initial_balance ?? 0;
     const profit  = safe(acc.last.balance) - initial;
 
+    // نحاول أخذ الإيكويتي من آخر نقطة بالتاريخ، وإن ما وُجد نستخدم acc.equity إن كان موجود
+    const lastEq = Number.isFinite(acc.last?.equity) ? acc.last.equity
+                  : (Number.isFinite(acc.equity) ? Number(acc.equity) : NaN);
+
     const card = document.createElement('article');
     card.className = `card ${profit>0?'pos':profit<0?'neg':'zero'}`;
     card.innerHTML = `
@@ -99,11 +103,14 @@ function renderDashboard(data){
         ${acc.alias && acc.account_id ? `<small>(#${acc.account_id})</small>`:''}
       </div>
 
-      <div class="info">
+      <!-- السطر العلوي: Initial + Balance + Equity -->
+      <div class="info three">
         <div>Initial: <b>$${toMoney(initial)}</b></div>
         <div>Balance: <b>$${toMoney(acc.last.balance)}</b></div>
+        <div>Equity: <b class="eqv">${Number.isFinite(lastEq) ? '$'+toMoney(lastEq) : '—'}</b></div>
       </div>
 
+      <!-- السطر الثاني: Today + Profit -->
       <div class="info">
         <div>Today: <b class="${acc.today>=0?'pos':'neg'}">$${toMoney(acc.today)}</b></div>
         <div>Profit: <b class="${profit>=0?'pos':'neg'}">$${toMoney(profit)}</b></div>
@@ -127,14 +134,15 @@ function renderDashboard(data){
       <div class="muted" style="margin-top:6px">Last updated: ${new Date(acc.last.timestamp).toLocaleString()}</div>
     `;
 
-    card.addEventListener('click', (e)=>{
-      if((e.target.classList && e.target.classList.contains('edit')) || (e.target.tagName||'').toLowerCase()==='button') return;
+    card.addEventListener('click',(e)=>{
+      if(e.target.classList && e.target.classList.contains('edit')) return;
       openDetail(acc);
     });
 
     dashboard.appendChild(card);
   });
 }
+
 
 // ===================== الأهداف (محفوظة محليًا) ===================== //
 const goals = JSON.parse(localStorage.getItem('goals')||'{}');
