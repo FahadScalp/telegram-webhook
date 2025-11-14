@@ -169,6 +169,15 @@ h1{margin:0;font-weight:800;letter-spacing:.2px;color:#1e3a8a}
 }
 .seg-btn.active{ background:#0f172a; color:#fff; border-color:#0f172a }
 
+.range-select{
+  padding:6px 10px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#fff;
+  font-weight:700;
+  font-size:13px;
+}
+
 /* Table */
 .table-wrap{ background:#fff; border:1px solid var(--border); border-radius:12px; overflow:hidden }
 .mini-table{ width:100%; border-collapse:collapse; font-size:13px }
