@@ -29,24 +29,33 @@
       <div id="detailTitle" class="drawer-title">—</div>
       <div id="detailSub" class="drawer-sub">—</div>
     </div>
-    <button id="detailClose" class="btn-close" aria-label="Close">×</button>
+    <button id="detailClose" class="btn-close big" aria-label="Close">×</button>
   </div>
 
   <div class="drawer-body">
     <div id="detailStats" class="stats-row"></div>
 
     <div class="chart-wrap">
-      <div class="chart-head">
-        <span>Balance (last 7 days)</span>
-        <span class="muted" id="detailRange">—</span>
-      </div>
-      <div id="weeklyChart" class="chart"></div>
-      <div id="chartLegend" class="legend">
-        <span class="dot dot-ok"></span><span>Balance</span>
-        <span class="sep"></span>
-        <span class="muted">Hover points to see details</span>
-      </div>
+  <div class="chart-head">
+    <span>Balance / Equity</span>
+    <div class="seg" id="periodSeg">
+      <button class="seg-btn active" data-days="7">7d</button>
+      <button class="seg-btn" data-days="14">14d</button>
+      <button class="seg-btn" data-days="30">30d</button>
     </div>
+  </div>
+
+  <div id="weeklyChart" class="chart"></div>
+
+  <div id="chartLegend" class="legend">
+    <span class="dot" style="background:#16a34a"></span><span>Balance</span>
+    <span class="dot" style="background:#2563eb;margin-inline-start:10px"></span><span>Equity</span>
+    <span class="sep"></span>
+    <span class="muted" id="detailRange">—</span>
+  </div>
+
+  <div id="ddChart" class="chart" style="height:120px;margin-top:10px"></div>
+</div>
 
     <div class="table-wrap">
       <table class="mini-table" id="detailTable">
