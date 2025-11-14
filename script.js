@@ -40,20 +40,21 @@ async function fetchAccounts(){
 function getFilteredData(){
   const val = (searchInput?.value || '').toLowerCase().trim();
   let data = Object.values(accounts).map(acc=>{
-    const history = Array.isArray(acc.history) ? acc.history.map(h=>({
-      balance: safe(h.balance),
-      equity : isFinite(h.equity)? Number(h.equity) : NaN,   // يدعم Equity إن أرسلتها من الإكسبرت
-      timestamp: fixTsMs(h.timestamp)
-    })) : [];
-    return {
-      ...acc,
-      history,
-      last: history[history.length-1] || { balance: safe(acc.balance), timestamp: Date.now() },
-      initial_balance: isFinite(acc.initial_balance) ? Number(acc.initial_balance)
-                      : (history[0]?.balance ?? 0),
-      today: safe(acc.today, 0)
-    };
-  }).filter(acc =>
+  const history = Array.isArray(acc.history) ? acc.history.map(h=>({
+    balance: safe(h.balance),
+    equity : Number.isFinite(Number(h.equity)) ? Number(h.equity) : NaN, // ← سطر مهم
+    timestamp: fixTsMs(h.timestamp)
+  })) : [];
+  return {
+    ...acc,
+    history,
+    last: history[history.length-1] || { balance: safe(acc.balance), equity: Number(acc.equity)||NaN, timestamp: Date.now() },
+    initial_balance: isFinite(acc.initial_balance) ? Number(acc.initial_balance) : (history[0]?.balance ?? 0),
+    today: safe(acc.today, 0),
+    equity: Number(acc.equity)||NaN // احتياطي لو ما جت ضمن history
+  };
+});
+.filter(acc =>
     (acc.alias && acc.alias.toLowerCase().includes(val)) ||
     (acc.account_id && String(acc.account_id).toLowerCase().includes(val))
   );
