@@ -450,36 +450,71 @@ function fillTable(acc, days){
   const tbody = document.querySelector('#dwTable tbody');
   if (!tbody) return;
 
-  const daily = getDailyPnL(acc, days);
+  const end   = Date.now();
+  const start = end - days * 24 * 3600 * 1000;
+
+  const histAll = acc.history || [];
+
+  // نرشّح التحديثات ضمن مدى الأيام المطلوب
+  const filtered = histAll.filter(h =>
+    h.timestamp >= start && h.timestamp <= end
+  );
+
   tbody.innerHTML = '';
 
-  if (!daily.length){
+  if (!filtered.length){
     tbody.innerHTML = `<tr><td colspan="4" class="muted">لا توجد بيانات</td></tr>`;
     const chip = document.getElementById('dwRangePnlChip');
-    if (chip) chip.innerHTML = `Range PNL (${days} يوم): <b>$0.00</b>`;
+    if (chip){
+      chip.innerHTML = `Range PNL (${days} يوم): <b>$0.00</b>`;
+    }
     return;
   }
 
-  let totalDelta = 0;
+  // نتأكد أنه مرتّب تصاعديًا بالوقت
+  filtered.sort((a,b) => a.timestamp - b.timestamp);
 
-  daily.forEach(row => {
-    totalDelta += row.delta;
+  const rows = [];
+  let totalDelta = 0;
+  let prevBal = null;
+
+  // نحسب دلتا لكل تحديث مقابل التحديث السابق
+  filtered.forEach(h => {
+    const last  = Number(h.balance) || 0;
+    const first = (prevBal == null ? last : prevBal);
+    const delta = last - first;
+
+    rows.push({
+      first,
+      last,
+      delta,
+      ts: h.timestamp
+    });
+
+    prevBal = last;
+    totalDelta += delta;
+  });
+
+  // نعرض الأحدث أولاً (نزولاً)
+  rows.slice().reverse().forEach(row => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="${row.delta>=0?'pos':'neg'}">$${toMoney(row.delta)}</td>
+      <td class="${row.delta >= 0 ? 'pos' : 'neg'}">$${toMoney(row.delta)}</td>
       <td>$${toMoney(row.last)}</td>
       <td>$${toMoney(row.first)}</td>
-      <td>${fmtDateOnly(row.dateObj)}</td>
+      <td>${fmtDate(row.ts)}</td>
     `;
     tbody.appendChild(tr);
   });
 
-  // تحديث شريحة إجمالي أرباح نطاق الأيام
+  // تحديت شريحة إجمالي أرباح المدى
   const chip = document.getElementById('dwRangePnlChip');
   if (chip){
-    chip.innerHTML = `Range PNL (${days} يوم): <b class="${totalDelta>=0?'pos':'neg'}">$${toMoney(totalDelta)}</b>`;
+    chip.innerHTML =
+      `Range PNL (${days} يوم): <b class="${totalDelta >= 0 ? 'pos' : 'neg'}">$${toMoney(totalDelta)}</b>`;
   }
 }
+
 
 
 /* ===================== CSV ===================== */
