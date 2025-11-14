@@ -308,17 +308,42 @@ function openDetail(acc){
   fillTable(acc, 30);
 
   const init = Number(acc.initial_balance)||0;
-  const bal  = Number(acc.last.balance)||0;
-  const eq   = (acc.last.equity==null ? undefined : Number(acc.last.equity));
-  const pnl  = bal - init;
-  const stats= document.getElementById('dwStats');
-  stats.innerHTML = `
-    <div class="chip">Initial: <b>$${toMoney(init)}</b></div>
-    <div class="chip">Balance: <b>$${toMoney(bal)}</b></div>
-    <div class="chip">Equity: <b>${(eq==null||isNaN(eq))?'—': '$'+toMoney(eq)}</b></div>
-    <div class="chip">Today: <b class="${(acc.today||0)>=0?'pos':'neg'}">$${toMoney(acc.today||0)}</b></div>
-    <div class="chip">PNL: <b class="${pnl>=0?'pos':'neg'}">$${toMoney(pnl)}</b></div>
-  `;
+const bal  = Number(acc.last.balance)||0;
+const eq   = (acc.last.equity==null ? undefined : Number(acc.last.equity));
+const pnl  = bal - init;
+
+const stats = document.getElementById('dwStats');
+stats.innerHTML = `
+  <div class="chip">Initial: <b>$${toMoney(init)}</b></div>
+  <div class="chip">Balance: <b>$${toMoney(bal)}</b></div>
+  <div class="chip">Equity: <b>${(eq==null||isNaN(eq)) ? '—' : '$'+toMoney(eq)}</b></div>
+  <div class="chip">Today: <b class="${(acc.today||0)>=0?'pos':'neg'}">$${toMoney(acc.today||0)}</b></div>
+  <div class="chip">PNL الكلي: <b class="${pnl>=0?'pos':'neg'}">$${toMoney(pnl)}</b></div>
+  <div class="chip" id="dwRangePnlChip">Range PNL: <b>$0.00</b></div>
+`;
+const rangeSelect = document.getElementById('dwRange');
+if (rangeSelect && !rangeSelect.dataset.ready){
+  // نملأ من 1 إلى 30 يوم مرة واحدة فقط
+  let opts = '';
+  for (let d = 1; d <= 30; d++){
+    opts += `<option value="${d}" ${d===7?'selected':''}>آخر ${d} يوم</option>`;
+  }
+  rangeSelect.innerHTML = opts;
+  rangeSelect.dataset.ready = '1';
+}
+
+// دالة لتحديث الرسم + الجدول + إجمالي PnL للمدى
+function updateRange(){
+  const days = Number(rangeSelect.value) || 7;
+  drawChart(acc, days);
+  fillTable(acc, days);   // سنعدّل fillTable بعد شوي
+}
+
+rangeSelect.onchange = updateRange;
+
+// أول مرة
+updateRange();
+
 
   backdrop.classList.remove('hidden');
   void drawer.offsetWidth;
@@ -422,30 +447,40 @@ function getDailyPnL(acc, days){
 
 
 function fillTable(acc, days){
-  const end   = Date.now();
-  const start = end - days*24*3600*1000;
-  const rows  = (acc.history||[]).filter(h => (h.timestamp>=start && h.timestamp<=end));
   const tbody = document.querySelector('#dwTable tbody');
+  if (!tbody) return;
+
+  const daily = getDailyPnL(acc, days);
   tbody.innerHTML = '';
 
-  if (!rows.length){
+  if (!daily.length){
     tbody.innerHTML = `<tr><td colspan="4" class="muted">لا توجد بيانات</td></tr>`;
+    const chip = document.getElementById('dwRangePnlChip');
+    if (chip) chip.innerHTML = `Range PNL (${days} يوم): <b>$0.00</b>`;
     return;
   }
-  // أول وآخر + الفارق
-  const first = rows[0].balance;
-  const last  = rows[rows.length-1].balance;
-  const delta = last-first;
 
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td class="${delta>=0?'pos':'neg'}">$${toMoney(delta)}</td>
-    <td>$${toMoney(last)}</td>
-    <td>$${toMoney(first)}</td>
-    <td>${new Date().toLocaleDateString()}</td>
-  `;
-  tbody.appendChild(tr);
+  let totalDelta = 0;
+
+  daily.forEach(row => {
+    totalDelta += row.delta;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="${row.delta>=0?'pos':'neg'}">$${toMoney(row.delta)}</td>
+      <td>$${toMoney(row.last)}</td>
+      <td>$${toMoney(row.first)}</td>
+      <td>${fmtDateOnly(row.dateObj)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // تحديث شريحة إجمالي أرباح نطاق الأيام
+  const chip = document.getElementById('dwRangePnlChip');
+  if (chip){
+    chip.innerHTML = `Range PNL (${days} يوم): <b class="${totalDelta>=0?'pos':'neg'}">$${toMoney(totalDelta)}</b>`;
+  }
 }
+
 
 /* ===================== CSV ===================== */
 function downloadCSV(){
