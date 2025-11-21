@@ -477,6 +477,7 @@ function fillTable(acc, days){
   const rows = [];
   let totalDelta = 0;
   let prevBal = null;
+  const EPS = 1e-6; // عتبة صغيرة لمقارنة الصفر
 
   // نحسب دلتا لكل تحديث مقابل التحديث السابق
   filtered.forEach(h => {
@@ -484,6 +485,7 @@ function fillTable(acc, days){
     const first = (prevBal == null ? last : prevBal);
     const delta = last - first;
 
+    // نخزن الصف دائمًا في rows
     rows.push({
       first,
       last,
@@ -492,28 +494,40 @@ function fillTable(acc, days){
     });
 
     prevBal = last;
-    totalDelta += delta;
+
+    // مجموع الربح للمدى (الصفر ما يأثر سواء حسبناه أو لا)
+    if (Math.abs(delta) > EPS) {
+      totalDelta += delta;
+    }
   });
 
-  // نعرض الأحدث أولاً (نزولاً)
-  rows.slice().reverse().forEach(row => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="${row.delta >= 0 ? 'pos' : 'neg'}">$${toMoney(row.delta)}</td>
-      <td>$${toMoney(row.last)}</td>
-      <td>$${toMoney(row.first)}</td>
-      <td>${fmtDate(row.ts)}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  // نستبعد الصفوف اللي الدلتا فيها = 0.00 تقريبًا
+  const visibleRows = rows.filter(r => Math.abs(r.delta) > EPS);
 
-  // تحديت شريحة إجمالي أرباح المدى
+  if (!visibleRows.length){
+    tbody.innerHTML = `<tr><td colspan="4" class="muted">لا توجد بيانات (لا يوجد ربح/خسارة مسجّل في هذا المدى)</td></tr>`;
+  } else {
+    // نعرض الأحدث أولاً (نزولاً)
+    visibleRows.slice().reverse().forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="${row.delta >= 0 ? 'pos' : 'neg'}">$${toMoney(row.delta)}</td>
+        <td>$${toMoney(row.last)}</td>
+        <td>$${toMoney(row.first)}</td>
+        <td>${fmtDate(row.ts)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // تحديث شريحة إجمالي أرباح المدى
   const chip = document.getElementById('dwRangePnlChip');
   if (chip){
     chip.innerHTML =
       `Range PNL (${days} يوم): <b class="${totalDelta >= 0 ? 'pos' : 'neg'}">$${toMoney(totalDelta)}</b>`;
   }
 }
+
 
 
 
