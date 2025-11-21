@@ -456,13 +456,13 @@ function fillTable(acc, days){
   const histAll = acc.history || [];
 
   // نرشّح التحديثات ضمن مدى الأيام المطلوب
-  const filtered = histAll.filter(h =>
+  const updates = histAll.filter(h =>
     h.timestamp >= start && h.timestamp <= end
   );
 
   tbody.innerHTML = '';
 
-  if (!filtered.length){
+  if (!updates.length){
     tbody.innerHTML = `<tr><td colspan="4" class="muted">لا توجد بيانات</td></tr>`;
     const chip = document.getElementById('dwRangePnlChip');
     if (chip){
@@ -472,46 +472,43 @@ function fillTable(acc, days){
   }
 
   // نتأكد أنه مرتّب تصاعديًا بالوقت
-  filtered.sort((a,b) => a.timestamp - b.timestamp);
+  updates.sort((a,b) => a.timestamp - b.timestamp);
 
   const rows = [];
-  let totalDelta = 0;
   let prevBal = null;
-  const EPS = 1e-6; // عتبة صغيرة لمقارنة الصفر
 
-  // نحسب دلتا لكل تحديث مقابل التحديث السابق
-  filtered.forEach(h => {
+  updates.forEach(h => {
     const last  = Number(h.balance) || 0;
     const first = (prevBal == null ? last : prevBal);
-    const delta = last - first;
+    const rawDelta = last - first;
 
-    // نخزن الصف دائمًا في rows
+    // نقرّب للعرض ونستخدمه في الفلترة
+    const deltaNum  = rawDelta;
+    const deltaText = toMoney(deltaNum); // يعطي "0.00" أو "5.23" إلخ
+
     rows.push({
       first,
       last,
-      delta,
+      delta: deltaNum,
+      deltaText,
       ts: h.timestamp
     });
 
     prevBal = last;
-
-    // مجموع الربح للمدى (الصفر ما يأثر سواء حسبناه أو لا)
-    if (Math.abs(delta) > EPS) {
-      totalDelta += delta;
-    }
   });
 
-  // نستبعد الصفوف اللي الدلتا فيها = 0.00 تقريبًا
-  const visibleRows = rows.filter(r => Math.abs(r.delta) > EPS);
+  // 👈 هنا الفلترة: نستبعد أي صف يكون دلتا بعد التقريب = 0.00
+  const visibleRows = rows.filter(r => r.deltaText !== '0.00');
 
+  // لو بعد الفلترة ما بقي شيء، نعرض رسالة بسيطة
   if (!visibleRows.length){
-    tbody.innerHTML = `<tr><td colspan="4" class="muted">لا توجد بيانات (لا يوجد ربح/خسارة مسجّل في هذا المدى)</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="muted">لا يوجد ربح/خسارة (كل التحديثات 0.00$)</td></tr>`;
   } else {
-    // نعرض الأحدث أولاً (نزولاً)
+    // نعرض الأحدث أولاً
     visibleRows.slice().reverse().forEach(row => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="${row.delta >= 0 ? 'pos' : 'neg'}">$${toMoney(row.delta)}</td>
+        <td class="${row.delta >= 0 ? 'pos' : 'neg'}">$${row.deltaText}</td>
         <td>$${toMoney(row.last)}</td>
         <td>$${toMoney(row.first)}</td>
         <td>${fmtDate(row.ts)}</td>
@@ -520,13 +517,16 @@ function fillTable(acc, days){
     });
   }
 
-  // تحديث شريحة إجمالي أرباح المدى
+  // إجمالي PnL للمدى نحسبه فقط من الصفوف الظاهرة
+  const totalDelta = visibleRows.reduce((sum, r) => sum + r.delta, 0);
+
   const chip = document.getElementById('dwRangePnlChip');
   if (chip){
     chip.innerHTML =
       `Range PNL (${days} يوم): <b class="${totalDelta >= 0 ? 'pos' : 'neg'}">$${toMoney(totalDelta)}</b>`;
   }
 }
+
 
 
 
